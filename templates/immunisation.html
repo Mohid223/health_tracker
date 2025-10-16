@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Immunisation - Health World {% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="display-5">Immunisation Records</h1>
+        <p class="lead">Keep track of your vaccination history</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Immunisation Form -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Add Immunisation Record</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('immunisation') }}">
+                    <div class="mb-3">
+                        <label for="vaccine_name" class="form-label">Vaccine Name</label>
+                        <input type="text" class="form-control" id="vaccine_name" name="vaccine_name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="date" class="form-label">Date Administered</label>
+                        <input type="date" class="form-control" id="date" name="date" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="next_due_date" class="form-label">Next Due Date (if applicable)</label>
+                        <input type="date" class="form-control" id="next_due_date" name="next_due_date">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success btn-lg">Save Record</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Immunisation History -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Immunisation History</h5>
+            </div>
+            <div class="card-body">
+                {% if immunisation_records %}
+                <div class="list-group">
+                    {% for record in immunisation_records %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">{{ record.vaccine_name }}</h5>
+                            <small>{{ record.date.strftime('%Y-%m-%d') }}</small>
+                        </div>
+                        {% if record.next_due_date %}
+                        <p class="mb-1"><strong>Next due:</strong> {{ record.next_due_date.strftime('%Y-%m-%d') }}</p>
+                        {% endif %}
+                        {% if record.notes %}
+                        <p class="mb-1">{{ record.notes }}</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-4">No immunisation records yet. Add your first vaccine!</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

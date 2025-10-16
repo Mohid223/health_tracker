@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}History - Health World{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="display-5">Health History</h1>
+        <p class="lead">Complete overview of your health records</p>
+    </div>
+</div>
+
+<!-- Tabs Navigation -->
+<ul class="nav nav-tabs mb-4" id="historyTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="vitals-tab" data-bs-toggle="tab" data-bs-target="#vitals" type="button" role="tab">
+            <i class="fas fa-heartbeat me-2"></i>Vitals History
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="immunisation-tab" data-bs-toggle="tab" data-bs-target="#immunisation" type="button" role="tab">
+            <i class="fas fa-syringe me-2"></i>Immunisation History
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="prediction-tab" data-bs-toggle="tab" data-bs-target="#prediction" type="button" role="tab">
+            <i class="fas fa-chart-line me-2"></i>Prediction History
+        </button>
+    </li>
+</ul>
+
+<!-- Tab Content -->
+<div class="tab-content" id="historyTabsContent">
+    <!-- Vitals Tab -->
+    <div class="tab-pane fade show active" id="vitals" role="tabpanel">
+        {% if vitals_history %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead class="table-primary">
+                    <tr>
+                        <th>Date</th>
+                        <th>Height (cm)</th>
+                        <th>Weight (kg)</th>
+                        <th>BMI</th>
+                        <th>Blood Pressure</th>
+                        <th>Heart Rate</th>
+                        <th>Glucose</th>
+                        <th>Temperature</th>
+                        <th>SpO2</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for vital in vitals_history %}
+                    <tr>
+                        <td>{{ vital.date_recorded.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ "%.1f"|format(vital.height) }}</td>
+                        <td>{{ "%.1f"|format(vital.weight) }}</td>
+                        <td>{{ "%.1f"|format(vital.bmi) }}</td>
+                        <td>{{ vital.bp_systolic }}/{{ vital.bp_diastolic }}</td>
+                        <td>{{ vital.heart_rate }}</td>
+                        <td>{{ "%.1f"|format(vital.glucose) }}</td>
+                        <td>{{ "%.1f"|format(vital.temperature) }}</td>
+                        <td>{{ vital.oxygen_saturation }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-heartbeat fa-3x text-muted mb-3"></i>
+            <h4 class="text-muted">No Vitals Recorded</h4>
+            <p class="text-muted">Start tracking your health by recording your first vitals.</p>
+            <a href="{{ url_for('vitals') }}" class="btn btn-primary">Record Vitals</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Immunisation Tab -->
+    <div class="tab-pane fade" id="immunisation" role="tabpanel">
+        {% if immunisation_history %}
+        <div class="row">
+            {% for record in immunisation_history %}
+            <div class="col-md-6 mb-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ record.vaccine_name }}</h5>
+                        <p class="card-text">
+                            <strong>Date:</strong> {{ record.date.strftime('%Y-%m-%d') }}<br>
+                            {% if record.next_due_date %}
+                            <strong>Next Due:</strong> {{ record.next_due_date.strftime('%Y-%m-%d') }}<br>
+                            {% endif %}
+                            {% if record.notes %}
+                            <strong>Notes:</strong> {{ record.notes }}
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-syringe fa-3x text-muted mb-3"></i>
+            <h4 class="text-muted">No Immunisation Records</h4>
+            <p class="text-muted">Add your vaccination records to keep track of your immunisation history.</p>
+            <a href="{{ url_for('immunisation') }}" class="btn btn-success">Add Immunisation</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Prediction Tab -->
+    <div class="tab-pane fade" id="prediction" role="tabpanel">
+        {% if prediction_history %}
+        <div class="row">
+            {% for prediction in prediction_history %}
+            <div class="col-md-6 mb-3">
+                <div class="card">
+                    <div class="card-header 
+                        {% if prediction.risk_level == 'Low Risk' %}bg-success
+                        {% elif prediction.risk_level == 'Medium Risk' %}bg-warning
+                        {% else %}bg-danger{% endif %} text-white">
+                        <h6 class="mb-0">{{ prediction.risk_level }}</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">
+                            <strong>Date:</strong> {{ prediction.prediction_date.strftime('%Y-%m-%d') }}<br>
+                            <strong>Age:</strong> {{ prediction.age }}<br>
+                            <strong>BMI:</strong> {{ "%.1f"|format(prediction.bmi) }}<br>
+                            <strong>Blood Pressure:</strong> {{ prediction.bp_systolic }}/{{ prediction.bp_diastolic }}<br>
+                            <strong>Glucose:</strong> {{ "%.1f"|format(prediction.glucose) }}<br>
+                            <strong>Confidence:</strong> {{ "%.1f"|format(prediction.risk_probability) }}%
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+            <h4 class="text-muted">No Prediction History</h4>
+            <p class="text-muted">Use our prediction tool to assess your risk of developing lifestyle diseases.</p>
+            <a href="{{ url_for('prediction') }}" class="btn btn-info">Make Prediction</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

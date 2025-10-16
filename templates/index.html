@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Health World  {% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section bg-primary text-white py-5 rounded mb-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold mb-4">HEALTH WORLD  </h1>
+                <p class="lead mb-4">Empowering individuals to take control of their health through advanced tracking and predictive analytics.</p>
+                {% if not session.user_id %}
+                <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                    <a href="{{ url_for('register') }}" class="btn btn-light btn-lg px-4 me-md-2">Get Started</a>
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-lg px-4">Login</a>
+                </div>
+                {% else %}
+                <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-light btn-lg px-4 me-md-2">Go to Dashboard</a>
+                </div>
+                {% endif %}
+            </div>
+            <div class="col-lg-6 text-center">
+                <i class="fas fa-heartbeat display-1"></i>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="features-section mb-5">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col">
+                <h2 class="fw-bold">Our Health Solutions</h2>
+                <p class="text-muted">Comprehensive tools for modern health management</p>
+            </div>
+        </div>
+        <div class="row">
+            <!-- Vitals Tracker -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <div class="feature-icon bg-primary text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                            <i class="fas fa-heartbeat fa-2x"></i>
+                        </div>
+                        <h4 class="card-title">VITALS TRACKER</h4>
+                        <p class="card-text">
+                            Most of the health issues facing the world is now under the category of lifestyle diseases which develop from the daily activities undertaken by people. These show their impact after a prolonged period of repeatedly following similar unhealthy habits.
+                        </p>
+                        <ul class="list-unstyled text-start">
+                            <li><i class="fas fa-check text-success me-2"></i> Track weight, BMI, and body measurements</li>
+                            <li><i class="fas fa-check text-success me-2"></i> Monitor blood pressure and heart rate</li>
+                            <li><i class="fas fa-check text-success me-2"></i> Record glucose levels and temperature</li>
+                            <li><i class="fas fa-check text-success me-2"></i> Visualize trends with interactive charts</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Immunisation Recorder -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <div class="feature-icon bg-success text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                            <i class="fas fa-syringe fa-2x"></i>
+                        </div>
+                        <h4>IMMUNISATION RECORDER</h4>
+                        <p class="card-text">
+                            Can a system be designed where regularly tracking vitals can predict chances of developing lifestyle diseases? Our platform answers this with advanced machine learning algorithms that analyze your health data to provide personalized risk assessments.
+                        </p>
+                        <ul class="list-unstyled text-start">
+                            <li><i class="fas fa-check text-success me-2"></i> Record all vaccination history</li>
+                            <li><i class="fas fa-check text-success me-2"></i> Set reminders for upcoming doses</li>
+                            <li><i class="fas fa-check text-success me-2"></i> Digital vaccine certificate storage</li>
+                            <li><i class="fas fa-check text-success me-2"></i> Share records with healthcare providers</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Prediction Feature -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card border-0 bg-light">
+                    <div class="card-body p-5 text-center">
+                        <h3 class="fw-bold mb-3">Disease Prediction Technology</h3>
+                        <p class="lead mb-4">
+                            Our advanced machine learning algorithms analyze your health data to predict the risk of developing lifestyle diseases, allowing for early intervention and prevention.
+                        </p>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-brain text-primary fa-2x me-3"></i>
+                                    <div class="text-start">
+                                        <h5>AI-Powered</h5>
+                                        <p class="mb-0">Advanced algorithms for accurate predictions</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-chart-line text-success fa-2x me-3"></i>
+                                    <div class="text-start">
+                                        <h5>Trend Analysis</h5>
+                                        <p class="mb-0">Identify patterns in your health data</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-user-md text-info fa-2x me-3"></i>
+                                    <div class="text-start">
+                                        <h5>Actionable Insights</h5>
+                                        <p class="mb-0">Personalized recommendations for better health</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% if session.user_id %}
+                        <a href="{{ url_for('prediction') }}" class="btn btn-primary btn-lg mt-3">Try Prediction Tool</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

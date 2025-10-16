@@ -1,0 +1,114 @@
+ 
+ {% extends "base.html" %}
+
+{% block title %}Vitals Tracker - Health World After COVID{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="display-5">Vitals Tracker</h1>
+        <p class="lead">Monitor and record your health measurements</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Vitals Form -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Record New Vitals</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('vitals') }}">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="height" class="form-label">Height (cm)</label>
+                            <input type="number" class="form-control" id="height" name="height" step="0.1" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="weight" class="form-label">Weight (kg)</label>
+                            <input type="number" class="form-control" id="weight" name="weight" step="0.1" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="bp_systolic" class="form-label">Blood Pressure (Systolic)</label>
+                            <input type="number" class="form-control" id="bp_systolic" name="bp_systolic" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="bp_diastolic" class="form-label">Blood Pressure (Diastolic)</label>
+                            <input type="number" class="form-control" id="bp_diastolic" name="bp_diastolic" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="heart_rate" class="form-label">Heart Rate (bpm)</label>
+                            <input type="number" class="form-control" id="heart_rate" name="heart_rate" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="glucose" class="form-label">Glucose (mg/dL)</label>
+                            <input type="number" class="form-control" id="glucose" name="glucose" step="0.1" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="temperature" class="form-label">Temperature (°C)</label>
+                            <input type="number" class="form-control" id="temperature" name="temperature" step="0.1" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="oxygen_saturation" class="form-label">Oxygen Saturation (%)</label>
+                            <input type="number" class="form-control" id="oxygen_saturation" name="oxygen_saturation" min="0" max="100" required>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">Save Vitals</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vitals History -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Vitals History</h5>
+            </div>
+            <div class="card-body">
+                {% if vitals_history %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Weight</th>
+                                <th>BMI</th>
+                                <th>BP</th>
+                                <th>HR</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for vital in vitals_history %}
+                            <tr>
+                                <td>{{ vital.date_recorded.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ "%.1f"|format(vital.weight) }} kg</td>
+                                <td>{{ "%.1f"|format(vital.bmi) }}</td>
+                                <td>{{ vital.bp_systolic }}/{{ vital.bp_diastolic }}</td>
+                                <td>{{ vital.heart_rate }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-4">No vitals recorded yet. Start by recording your first measurement!</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
