@@ -9,7 +9,7 @@ import joblib
 import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'
+app.config['SECRET_KEY'] = 'b00232f07c4572c4e0bc67b2a42bf661'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///health_tracker.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
