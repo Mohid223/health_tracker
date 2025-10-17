@@ -7,6 +7,7 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 import joblib
 import os
+import re
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b00232f07c4572c4e0bc67b2a42bf661'
@@ -15,7 +16,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# Models definition - app.py के अंदर ही
+# Models definition
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -27,6 +28,7 @@ class User(db.Model):
     vitals = db.relationship('Vitals', backref='user', lazy=True)
     immunisations = db.relationship('Immunisation', backref='user', lazy=True)
     predictions = db.relationship('DiseasePrediction', backref='user', lazy=True)
+    chat_messages = db.relationship('ChatMessage', backref='user', lazy=True)
 
 class Vitals(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -74,6 +76,14 @@ class DiseasePrediction(db.Model):
     risk_level = db.Column(db.String(50))
     risk_probability = db.Column(db.Float)
 
+class ChatMessage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    response = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    is_user = db.Column(db.Boolean, default=True)
+
 # ML Model for disease prediction
 def train_prediction_model():
     # This is a simplified example - in a real app, you'd use a proper dataset
@@ -103,6 +113,77 @@ if os.path.exists('disease_prediction_model.pkl'):
     prediction_model = joblib.load('disease_prediction_model.pkl')
 else:
     prediction_model = train_prediction_model()
+
+# Health Chatbot Logic
+class HealthChatbot:
+    def __init__(self):
+        self.responses = {
+            'greeting': [
+                "Hello! I'm your Health Assistant. How can I help you with your health concerns today?",
+                "Hi there! I'm here to help with your health questions. What would you like to know?",
+                "Welcome! I'm your health companion. How can I assist you today?"
+            ],
+            'symptoms': {
+                'fever': "Fever can be caused by infections. Rest, stay hydrated, and monitor your temperature. If it's above 102°F or lasts more than 3 days, consult a doctor.",
+                'headache': "Headaches can be due to stress, dehydration, or tension. Try resting in a quiet room, staying hydrated, and if persistent, consult a doctor.",
+                'cough': "For cough, stay hydrated and use honey in warm water. If accompanied by fever or breathing difficulty, seek medical attention.",
+                'blood pressure': "Normal blood pressure is around 120/80 mmHg. High BP can be managed with diet, exercise, and medication. Low BP may need increased salt intake.",
+                'diabetes': "Diabetes management involves monitoring blood sugar, healthy diet, regular exercise, and medication as prescribed by your doctor.",
+                'weight': "Maintain healthy weight through balanced diet and regular exercise. BMI between 18.5-24.9 is considered healthy."
+            },
+            'general_health': [
+                "Regular exercise, balanced diet, and adequate sleep are key to good health.",
+                "Stay hydrated by drinking 8-10 glasses of water daily for optimal health.",
+                "Preventive care including regular check-ups and vaccinations is important."
+            ],
+            'vitals': [
+                "You can track your vitals like blood pressure, heart rate, and glucose levels in the Vitals section.",
+                "Regular monitoring of vitals helps in early detection of health issues."
+            ],
+            'immunization': [
+                "Keep your immunizations up to date for protection against various diseases.",
+                "Check the Immunization section to track your vaccination records."
+            ],
+            'fallback': [
+                "I'm not sure I understand. Could you rephrase your question about health?",
+                "I specialize in health-related questions. Could you ask about symptoms, vitals, or general health tips?",
+                "I'm here to help with health concerns. Try asking about symptoms, medications, or health tips."
+            ]
+        }
+
+    def get_response(self, message, user_data=None):
+        message = message.lower().strip()
+        
+        # Greeting detection
+        if any(word in message for word in ['hello', 'hi', 'hey', 'greetings']):
+            return np.random.choice(self.responses['greeting'])
+        
+        # Symptom-related queries
+        for symptom, response in self.responses['symptoms'].items():
+            if symptom in message:
+                return response
+        
+        # General health queries
+        if any(word in message for word in ['exercise', 'diet', 'sleep', 'healthy']):
+            return np.random.choice(self.responses['general_health'])
+        
+        # Vitals queries
+        if any(word in message for word in ['vital', 'blood pressure', 'heart rate', 'bmi', 'glucose']):
+            return np.random.choice(self.responses['vitals'])
+        
+        # Immunization queries
+        if any(word in message for word in ['vaccine', 'immunization', 'vaccination']):
+            return np.random.choice(self.responses['immunization'])
+        
+        # Emergency detection
+        if any(word in message for word in ['emergency', 'urgent', 'help immediately', '911']):
+            return "🚨 This sounds serious! Please contact emergency services immediately or go to the nearest hospital. For non-emergencies, I'm here to help with general health advice."
+        
+        # Fallback response
+        return np.random.choice(self.responses['fallback'])
+
+# Initialize chatbot
+health_bot = HealthChatbot()
 
 # Routes
 @app.route('/')
@@ -340,6 +421,79 @@ def prediction():
     latest_vitals = Vitals.query.filter_by(user_id=user_id).order_by(Vitals.date_recorded.desc()).first()
     
     return render_template('prediction.html', latest_vitals=latest_vitals, show_result=False)
+
+# Chatbot Routes
+@app.route('/chatbot')
+def chatbot():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user_id = session['user_id']
+    # Get chat history
+    chat_history = ChatMessage.query.filter_by(user_id=user_id).order_by(ChatMessage.timestamp.asc()).limit(50).all()
+    
+    return render_template('chatbot.html', chat_history=chat_history)
+
+@app.route('/api/chat/send', methods=['POST'])
+def chat_send():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
+    data = request.get_json()
+    message = data.get('message', '').strip()
+    
+    if not message:
+        return jsonify({'error': 'Empty message'}), 400
+    
+    # Get bot response
+    bot_response = health_bot.get_response(message)
+    
+    # Save message to database
+    chat_message = ChatMessage(
+        user_id=user_id,
+        message=message,
+        response=bot_response,
+        is_user=True
+    )
+    db.session.add(chat_message)
+    db.session.commit()
+    
+    return jsonify({
+        'user_message': message,
+        'bot_response': bot_response,
+        'timestamp': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+    })
+
+@app.route('/api/chat/history')
+def chat_history():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
+    chat_messages = ChatMessage.query.filter_by(user_id=user_id).order_by(ChatMessage.timestamp.asc()).limit(50).all()
+    
+    history = []
+    for msg in chat_messages:
+        history.append({
+            'is_user': msg.is_user,
+            'message': msg.message if msg.is_user else msg.response,
+            'timestamp': msg.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        })
+    
+    return jsonify(history)
+
+@app.route('/api/chat/clear', methods=['POST'])
+def clear_chat():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
+    # Delete user's chat history
+    ChatMessage.query.filter_by(user_id=user_id).delete()
+    db.session.commit()
+    
+    return jsonify({'success': True})
 
 @app.route('/api/vitals/chart')
 def vitals_chart_data():

@@ -7,7 +7,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 
-    // Auto-fill today's date in date fields
+    // Auto-fill today's datebahi or v acha se padhao
+    //  in date fields
     const dateFields = document.querySelectorAll('input[type="date"]');
     dateFields.forEach(field => {
         if (!field.value) {
