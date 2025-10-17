@@ -1,0 +1,103 @@
+ {% extends "base.html" %}
+
+{% block title %}Book Appointment - Health Tracker{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Book Doctor Appointment</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <!-- Doctor Information -->
+                        <div class="mb-4 p-3 bg-light rounded">
+                            <h6>Doctor Information</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">Doctor Name</label>
+                                    <input type="text" class="form-control" name="doctor_name" 
+                                           value="{{ doctor_name }}" required readonly>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Specialization</label>
+                                    <input type="text" class="form-control" name="specialization" 
+                                           value="{{ specialization }}" required readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Change Doctor -->
+                        <div class="mb-3">
+                            <a href="{{ url_for('doctors') }}" class="btn btn-outline-primary btn-sm">
+                                Change Doctor
+                            </a>
+                        </div>
+
+                        <!-- Appointment Details -->
+                        <div class="mb-3">
+                            <label for="appointment_date" class="form-label">Appointment Date & Time</label>
+                            <input type="datetime-local" class="form-control" id="appointment_date" 
+                                   name="appointment_date" required>
+                            <div class="form-text">Select your preferred date and time</div>
+                        </div>
+
+                        <!-- Symptoms -->
+                        <div class="mb-3">
+                            <label for="symptoms" class="form-label">Symptoms / Reason for Visit</label>
+                            <textarea class="form-control" id="symptoms" name="symptoms" 
+                                      rows="4" placeholder="Describe your symptoms or health concerns..." required></textarea>
+                            <div class="form-text">Please provide details to help the doctor prepare for your visit</div>
+                        </div>
+
+                        <!-- Emergency Notice -->
+                        <div class="alert alert-warning">
+                            <strong>⚠️ Emergency Notice:</strong> 
+                            If you're experiencing severe symptoms like chest pain, difficulty breathing, 
+                            or serious injury, please go to the nearest hospital emergency room immediately.
+                            <a href="{{ url_for('emergency') }}" class="alert-link">Find Emergency Help</a>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Book Appointment</button>
+                            <a href="{{ url_for('doctors') }}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Doctor Availability Info -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h6>Appointment Information</h6>
+                    <ul class="list-unstyled">
+                        <li>✅ Consultation Fee: ₹500 - ₹1000</li>
+                        <li>✅ Available: Monday - Friday, 9:00 AM - 5:00 PM</li>
+                        <li>✅ Online consultation available</li>
+                        <li>✅ Bring previous medical reports if any</li>
+                        <li>⏰ Please arrive 15 minutes before your appointment</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set minimum datetime to current time
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    document.getElementById('appointment_date').min = now.toISOString().slice(0, 16);
+    
+    // Auto-focus on symptoms field
+    document.getElementById('symptoms').focus();
+});
+</script>
+{% endblock %}

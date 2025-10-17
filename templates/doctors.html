@@ -1,0 +1,181 @@
+ {% extends "base.html" %}
+
+{% block title %}Find Doctors - Health Tracker{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h2>Find Doctors</h2>
+            <p class="text-muted">Book appointments with specialized doctors</p>
+        </div>
+    </div>
+
+    <!-- Search Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Search Doctors</h5>
+            <form method="GET" class="row g-3">
+                <div class="col-md-8">
+                    <input type="text" name="specialization" class="form-control" 
+                           placeholder="Search by specialization (e.g., Cardiologist, Physician)" 
+                           value="{{ specialization }}">
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary w-100">Search</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Doctors List -->
+    <div class="row">
+        {% if doctors %}
+            {% for doctor in doctors %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h5 class="card-title">{{ doctor.name }}</h5>
+                            <span class="badge bg-primary">{{ doctor.specialization }}</span>
+                        </div>
+                        
+                        <div class="doctor-info mb-3">
+                            <p class="mb-1"><strong>Experience:</strong> {{ doctor.experience }}</p>
+                            <p class="mb-1"><strong>Rating:</strong> 
+                                <span class="text-warning">
+                                    {% for i in range(5) %}
+                                        {% if i < doctor.rating|int %}
+                                            ★
+                                        {% else %}
+                                            ☆
+                                        {% endif %}
+                                    {% endfor %}
+                                </span>
+                                ({{ doctor.rating }})
+                            </p>
+                        </div>
+
+                        <div class="doctor-actions">
+                            <a href="{{ url_for('book_appointment', doctor=doctor.name, specialization=doctor.specialization) }}" 
+                               class="btn btn-primary btn-sm">
+                                Book Appointment
+                            </a>
+                            <button class="btn btn-outline-secondary btn-sm" 
+                                    onclick="showDoctorDetails('{{ doctor.name }}', '{{ doctor.specialization }}', '{{ doctor.experience }}', '{{ doctor.rating }}')">
+                                View Details
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    No doctors found matching your search criteria. Try a different specialization.
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Specialization Filters -->
+    <div class="card mt-4">
+        <div class="card-body">
+            <h6 class="card-title">Quick Filters</h6>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ url_for('doctors', specialization='Cardiologist') }}" class="btn btn-outline-primary btn-sm">Cardiologist</a>
+                <a href="{{ url_for('doctors', specialization='Physician') }}" class="btn btn-outline-primary btn-sm">General Physician</a>
+                <a href="{{ url_for('doctors', specialization='Neurologist') }}" class="btn btn-outline-primary btn-sm">Neurologist</a>
+                <a href="{{ url_for('doctors', specialization='Orthopedic') }}" class="btn btn-outline-primary btn-sm">Orthopedic</a>
+                <a href="{{ url_for('doctors', specialization='Pediatrician') }}" class="btn btn-outline-primary btn-sm">Pediatrician</a>
+                <a href="{{ url_for('doctors', specialization='Dermatologist') }}" class="btn btn-outline-primary btn-sm">Dermatologist</a>
+                <a href="{{ url_for('doctors') }}" class="btn btn-outline-secondary btn-sm">Show All</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Doctor Details Modal -->
+<div class="modal fade" id="doctorModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="doctorModalTitle">Doctor Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="doctorDetails">
+                    <!-- Details will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="bookSelectedDoctor()">Book Appointment</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function showDoctorDetails(name, specialization, experience, rating) {
+    const modal = new bootstrap.Modal(document.getElementById('doctorModal'));
+    document.getElementById('doctorModalTitle').textContent = name;
+    
+    const detailsHtml = `
+        <div class="doctor-detail">
+            <h6>${specialization}</h6>
+            <p><strong>Experience:</strong> ${experience}</p>
+            <p><strong>Rating:</strong> ${rating}/5</p>
+            <p><strong>Availability:</strong> Monday - Friday, 9:00 AM - 5:00 PM</p>
+            <p><strong>Consultation Fee:</strong> ₹500 - ₹1000</p>
+            <p class="text-success"><strong>✅ Available for Online Consultation</strong></p>
+        </div>
+    `;
+    
+    document.getElementById('doctorDetails').innerHTML = detailsHtml;
+    
+    // Store selected doctor info for booking
+    document.getElementById('doctorDetails').dataset.doctorName = name;
+    document.getElementById('doctorDetails').dataset.specialization = specialization;
+    
+    modal.show();
+}
+
+function bookSelectedDoctor() {
+    const doctorName = document.getElementById('doctorDetails').dataset.doctorName;
+    const specialization = document.getElementById('doctorDetails').dataset.specialization;
+    
+    window.location.href = `/book_appointment?doctor=${encodeURIComponent(doctorName)}&specialization=${encodeURIComponent(specialization)}`;
+    
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('doctorModal'));
+    modal.hide();
+}
+</script>
+
+<style>
+.doctor-info {
+    border-left: 3px solid #007bff;
+    padding-left: 15px;
+}
+
+.doctor-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.card {
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}

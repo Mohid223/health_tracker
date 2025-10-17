@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+
+{% block title %}Emergency Help - Health Tracker{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <!-- Emergency Alert -->
+            <div class="alert alert-danger text-center">
+                <h1>🚨 EMERGENCY ASSISTANCE</h1>
+                <p class="lead mb-0">If this is a life-threatening emergency, call emergency services immediately!</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Emergency Contacts -->
+        <div class="col-md-4 mb-4">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">Emergency Contacts</h5>
+                </div>
+                <div class="card-body">
+                    <div class="emergency-contact-list">
+                        <div class="contact-item mb-3">
+                            <h6>🚑 Ambulance</h6>
+                            <p class="mb-1">Dial: <strong>102</strong> or <strong>108</strong></p>
+                            <small class="text-muted">24/7 Emergency Medical Service</small>
+                        </div>
+                        
+                        <div class="contact-item mb-3">
+                            <h6>🚒 Fire Department</h6>
+                            <p class="mb-1">Dial: <strong>101</strong></p>
+                            <small class="text-muted">Fire and Rescue Services</small>
+                        </div>
+                        
+                        <div class="contact-item mb-3">
+                            <h6>🚓 Police</h6>
+                            <p class="mb-1">Dial: <strong>100</strong></p>
+                            <small class="text-muted">Police Emergency</small>
+                        </div>
+                        
+                        <div class="contact-item">
+                            <h6>🆘 Disaster Management</h6>
+                            <p class="mb-1">Dial: <strong>1078</strong></p>
+                            <small class="text-muted">National Disaster Management</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button class="btn btn-outline-danger w-100" onclick="callEmergency('100')">
+                            <i class="fas fa-phone"></i> Call Emergency (100)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Nearby Hospitals -->
+        <div class="col-md-8 mb-4">
+            <div class="card">
+                <div class="card-header bg-warning">
+                    <h5 class="mb-0">🏥 Nearby Hospitals & Emergency Centers</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <button class="btn btn-primary" onclick="getNearbyHospitals()">
+                            <i class="fas fa-map-marker-alt"></i> Find Hospitals Near Me
+                        </button>
+                        <small class="text-muted ms-2">Allow location access to find nearest hospitals</small>
+                    </div>
+                    
+                    <div id="hospitalsList" class="mt-3">
+                        <div class="text-center text-muted">
+                            <p>Click "Find Hospitals Near Me" to locate nearby emergency centers</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Map Container -->
+                    <div id="mapContainer" class="mt-3" style="display: none;">
+                        <div id="map" style="height: 300px; border-radius: 8px; border: 1px solid #ddd;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Emergency Instructions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">🆘 Emergency Instructions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>For Heart Attack:</h6>
+                            <ul>
+                                <li>Call emergency immediately</li>
+                                <li>Chew and swallow aspirin (if available)</li>
+                                <li>Stay calm and sit down</li>
+                                <li>Loosen tight clothing</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>For Stroke (FAST Test):</h6>
+                            <ul>
+                                <li><strong>F</strong>ace: Check if face is drooping</li>
+                                <li><strong>A</strong>rms: Check if arms can be raised</li>
+                                <li><strong>S</strong>peech: Check if speech is slurred</li>
+                                <li><strong>T</strong>ime: Call emergency immediately</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6>For Severe Bleeding:</h6>
+                            <ul>
+                                <li>Apply direct pressure on wound</li>
+                                <li>Elevate the injured area</li>
+                                <li>Don't remove embedded objects</li>
+                                <li>Call emergency immediately</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>For Breathing Difficulty:</h6>
+                            <ul>
+                                <li>Call emergency immediately</li>
+                                <li>Stay in comfortable position</li>
+                                <li>Loosen tight clothing</li>
+                                <li>Use inhaler if available</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+let userLocation = null;
+
+function callEmergency(number) {
+    if (confirm(`Call emergency services at ${number}?`)) {
+        window.location.href = `tel:${number}`;
+    }
+}
+
+function getNearbyHospitals() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                userLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                
+                // Show loading
+                document.getElementById('hospitalsList').innerHTML = `
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2">Finding nearby hospitals...</p>
+                    </div>
+                `;
+                
+                // Fetch nearby hospitals from our API
+                fetch(`/api/nearby_hospitals?lat=${userLocation.lat}&lng=${userLocation.lng}`)
+                    .then(response => response.json())
+                    .then(hospitals => {
+                        displayHospitals(hospitals);
+                        showMap(hospitals);
+                    })
+                    .catch(error => {
+                        console.error('Error fetching hospitals:', error);
+                        document.getElementById('hospitalsList').innerHTML = `
+                            <div class="alert alert-danger">
+                                Error loading hospitals. Please try again.
+                            </div>
+                        `;
+                    });
+            },
+            function(error) {
+                alert('Location access denied. Using default location.');
+                // Use default location (Delhi)
+                userLocation = { lat: 28.6139, lng: 77.2090 };
+                fetchNearbyHospitalsDefault();
+            }
+        );
+    } else {
+        alert('Geolocation is not supported by this browser.');
+        userLocation = { lat: 28.6139, lng: 77.2090 };
+        fetchNearbyHospitalsDefault();
+    }
+}
+
+function fetchNearbyHospitalsDefault() {
+    fetch('/api/nearby_hospitals')
+        .then(response => response.json())
+        .then(hospitals => {
+            displayHospitals(hospitals);
+            showMap(hospitals);
+        });
+}
+
+function displayHospitals(hospitals) {
+    const hospitalsList = document.getElementById('hospitalsList');
+    
+    if (hospitals.length === 0) {
+        hospitalsList.innerHTML = '<div class="alert alert-info">No hospitals found in your area.</div>';
+        return;
+    }
+    
+    let html = '<div class="row">';
+    
+    hospitals.forEach(hospital => {
+        html += `
+            <div class="col-md-6 mb-3">
+                <div class="card h-100 border-success">
+                    <div class="card-body">
+                        <h6 class="card-title">${hospital.name}</h6>
+                        <p class="card-text small mb-1">
+                            <i class="fas fa-map-marker-alt text-danger"></i> ${hospital.address}
+                        </p>
+                        <p class="card-text small mb-1">
+                            <i class="fas fa-phone text-primary"></i> ${hospital.phone}
+                        </p>
+                        <p class="card-text small mb-2">
+                            <i class="fas fa-walking text-info"></i> ${hospital.distance} away
+                        </p>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-primary btn-sm" onclick="callEmergency('${hospital.phone}')">
+                                <i class="fas fa-phone"></i> Call
+                            </button>
+                            <button class="btn btn-outline-success btn-sm" onclick="getDirections(${hospital.lat}, ${hospital.lng})">
+                                <i class="fas fa-directions"></i> Directions
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    hospitalsList.innerHTML = html;
+}
+
+function showMap(hospitals) {
+    document.getElementById('mapContainer').style.display = 'block';
+    
+    // Simple map simulation (in real app, use Google Maps or Leaflet)
+    const mapContainer = document.getElementById('map');
+    mapContainer.innerHTML = `
+        <div class="text-center p-4 bg-light rounded">
+            <h6>📍 Hospital Locations Map</h6>
+            <p class="text-muted">In a real application, this would show an interactive map with hospital locations.</p>
+            <div class="mt-3">
+                ${hospitals.map(hospital => `
+                    <div class="d-flex align-items-center mb-2 justify-content-center">
+                        <span class="badge bg-danger me-2">🏥</span>
+                        <span>${hospital.name} - ${hospital.distance}</span>
+                    </div>
+                `).join('')}
+            </div>
+            <button class="btn btn-primary mt-3" onclick="openGoogleMaps()">
+                <i class="fas fa-external-link-alt"></i> Open in Google Maps
+            </button>
+        </div>
+    `;
+}
+
+function getDirections(lat, lng) {
+    // Open Google Maps with directions
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+    window.open(url, '_blank');
+}
+
+function openGoogleMaps() {
+    if (userLocation) {
+        const url = `https://www.google.com/maps/search/hospitals/@${userLocation.lat},${userLocation.lng},12z`;
+        window.open(url, '_blank');
+    } else {
+        window.open('https://www.google.com/maps/search/hospitals/', '_blank');
+    }
+}
+
+// Auto-load hospitals if location is available
+document.addEventListener('DOMContentLoaded', function() {
+    // You could auto-load here if desired
+    // getNearbyHospitals();
+});
+</script>
+
+<style>
+.emergency-contact-list .contact-item {
+    padding: 10px;
+    border-left: 3px solid #dc3545;
+    background-color: #f8f9fa;
+}
+
+.card {
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.btn {
+    transition: all 0.2s;
+}
+</style>
+{% endblock %}

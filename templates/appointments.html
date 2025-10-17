@@ -1,0 +1,164 @@
+ {% extends "base.html" %}
+
+{% block title %}My Appointments - Health Tracker{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>My Appointments</h2>
+                <a href="{{ url_for('book_appointment') }}" class="btn btn-primary">
+                    Book New Appointment
+                </a>
+            </div>
+
+            {% if appointments %}
+                <div class="row">
+                    {% for appointment in appointments %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card h-100 
+                            {% if appointment.status == 'Completed' %}border-success
+                            {% elif appointment.status == 'Cancelled' %}border-danger
+                            {% else %}border-primary{% endif %}">
+                            <div class="card-header 
+                                {% if appointment.status == 'Completed' %}bg-success text-white
+                                {% elif appointment.status == 'Cancelled' %}bg-danger text-white
+                                {% else %}bg-primary text-white{% endif %}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>{{ appointment.doctor_name }}</strong>
+                                    <span class="badge bg-light text-dark">{{ appointment.status }}</span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">
+                                    <strong>Specialization:</strong> {{ appointment.specialization }}<br>
+                                    <strong>Date:</strong> {{ appointment.appointment_date.strftime('%Y-%m-%d') }}<br>
+                                    <strong>Time:</strong> {{ appointment.appointment_date.strftime('%I:%M %p') }}<br>
+                                    <strong>Symptoms:</strong> 
+                                    <span class="text-muted">{{ appointment.symptoms[:100] }}{% if appointment.symptoms|length > 100 %}...{% endif %}</span>
+                                </p>
+                                
+                                <div class="appointment-actions mt-3">
+                                    {% if appointment.status == 'Scheduled' %}
+                                    <div class="btn-group w-100">
+                                        <button class="btn btn-outline-primary btn-sm" 
+                                                onclick="viewAppointment({{ appointment.id }})">
+                                            View
+                                        </button>
+                                        <button class="btn btn-outline-danger btn-sm" 
+                                                onclick="cancelAppointment({{ appointment.id }})">
+                                            Cancel
+                                        </button>
+                                    </div>
+                                    {% else %}
+                                    <button class="btn btn-outline-secondary btn-sm w-100" 
+                                            onclick="viewAppointment({{ appointment.id }})">
+                                        View Details
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="card-footer text-muted">
+                                Booked on: {{ appointment.created_at.strftime('%Y-%m-%d') }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <div class="mb-4">
+                        <i class="fas fa-calendar-times fa-3x text-muted"></i>
+                    </div>
+                    <h4 class="text-muted">No Appointments Found</h4>
+                    <p class="text-muted">You haven't booked any appointments yet.</p>
+                    <a href="{{ url_for('book_appointment') }}" class="btn btn-primary">
+                        Book Your First Appointment
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Appointment Details Modal -->
+<div class="modal fade" id="appointmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Appointment Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="appointmentDetails">
+                <!-- Details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function viewAppointment(appointmentId) {
+    // In a real app, you would fetch appointment details from the server
+    const modal = new bootstrap.Modal(document.getElementById('appointmentModal'));
+    
+    // For demo, show basic info
+    document.getElementById('appointmentDetails').innerHTML = `
+        <div class="appointment-detail">
+            <p><strong>Appointment ID:</strong> #${appointmentId}</p>
+            <p><strong>Status:</strong> <span class="badge bg-primary">Scheduled</span></p>
+            <p><strong>Note:</strong> In a real application, detailed appointment information would be displayed here.</p>
+            <div class="alert alert-info">
+                <small>
+                    <strong>Reminder:</strong><br>
+                    • Please arrive 15 minutes before your appointment<br>
+                    • Bring your ID and insurance card<br>
+                    • Bring any relevant medical reports
+                </small>
+            </div>
+        </div>
+    `;
+    
+    modal.show();
+}
+
+function cancelAppointment(appointmentId) {
+    if (confirm('Are you sure you want to cancel this appointment?')) {
+        // In a real app, you would send a request to cancel the appointment
+        alert('Appointment cancellation feature would be implemented here.');
+        // You would typically make a fetch request to cancel the appointment
+        // fetch(`/api/appointments/${appointmentId}/cancel`, { method: 'POST' })
+        // .then(response => response.json())
+        // .then(data => {
+        //     if (data.success) {
+        //         location.reload();
+        //     }
+        // });
+    }
+}
+</script>
+
+<style>
+.card {
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.appointment-actions .btn-group {
+    gap: 1px;
+}
+
+.appointment-actions .btn {
+    flex: 1;
+}
+</style>
+{% endblock %}

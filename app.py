@@ -7,7 +7,7 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 import joblib
 import os
-import re
+import math
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'b00232f07c4572c4e0bc67b2a42bf661'
@@ -29,6 +29,7 @@ class User(db.Model):
     immunisations = db.relationship('Immunisation', backref='user', lazy=True)
     predictions = db.relationship('DiseasePrediction', backref='user', lazy=True)
     chat_messages = db.relationship('ChatMessage', backref='user', lazy=True)
+    doctor_appointments = db.relationship('DoctorAppointment', backref='user', lazy=True)
 
 class Vitals(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -84,6 +85,16 @@ class ChatMessage(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     is_user = db.Column(db.Boolean, default=True)
 
+class DoctorAppointment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    doctor_name = db.Column(db.String(200), nullable=False)
+    specialization = db.Column(db.String(100), nullable=False)
+    appointment_date = db.Column(db.DateTime, nullable=False)
+    symptoms = db.Column(db.Text)
+    status = db.Column(db.String(50), default='Scheduled')  # Scheduled, Completed, Cancelled
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 # ML Model for disease prediction
 def train_prediction_model():
     # This is a simplified example - in a real app, you'd use a proper dataset
@@ -113,6 +124,16 @@ if os.path.exists('disease_prediction_model.pkl'):
     prediction_model = joblib.load('disease_prediction_model.pkl')
 else:
     prediction_model = train_prediction_model()
+
+# Doctor Database (In real app, this would be in database)
+DOCTORS = [
+    {"name": "Dr. Sharma", "specialization": "Cardiologist", "experience": "15 years", "rating": 4.8},
+    {"name": "Dr. Patel", "specialization": "General Physician", "experience": "10 years", "rating": 4.6},
+    {"name": "Dr. Kumar", "specialization": "Neurologist", "experience": "12 years", "rating": 4.7},
+    {"name": "Dr. Gupta", "specialization": "Orthopedic", "experience": "8 years", "rating": 4.5},
+    {"name": "Dr. Singh", "specialization": "Pediatrician", "experience": "14 years", "rating": 4.9},
+    {"name": "Dr. Reddy", "specialization": "Dermatologist", "experience": "11 years", "rating": 4.6}
+]
 
 # Health Chatbot Logic
 class HealthChatbot:
@@ -144,6 +165,13 @@ class HealthChatbot:
                 "Keep your immunizations up to date for protection against various diseases.",
                 "Check the Immunization section to track your vaccination records."
             ],
+            'doctor': [
+                "I can help you find a doctor based on your symptoms. What type of specialist are you looking for?",
+                "You can book appointments with doctors through our platform. Let me know your health concern."
+            ],
+            'emergency': [
+                "For emergencies, please call emergency services immediately! I can also help you find nearby hospitals."
+            ],
             'fallback': [
                 "I'm not sure I understand. Could you rephrase your question about health?",
                 "I specialize in health-related questions. Could you ask about symptoms, vitals, or general health tips?",
@@ -163,6 +191,14 @@ class HealthChatbot:
             if symptom in message:
                 return response
         
+        # Doctor-related queries
+        if any(word in message for word in ['doctor', 'appointment', 'specialist', 'consult']):
+            return np.random.choice(self.responses['doctor'])
+        
+        # Emergency detection
+        if any(word in message for word in ['emergency', 'urgent', 'help immediately', '911', 'hospital']):
+            return np.random.choice(self.responses['emergency'])
+        
         # General health queries
         if any(word in message for word in ['exercise', 'diet', 'sleep', 'healthy']):
             return np.random.choice(self.responses['general_health'])
@@ -174,10 +210,6 @@ class HealthChatbot:
         # Immunization queries
         if any(word in message for word in ['vaccine', 'immunization', 'vaccination']):
             return np.random.choice(self.responses['immunization'])
-        
-        # Emergency detection
-        if any(word in message for word in ['emergency', 'urgent', 'help immediately', '911']):
-            return "🚨 This sounds serious! Please contact emergency services immediately or go to the nearest hospital. For non-emergencies, I'm here to help with general health advice."
         
         # Fallback response
         return np.random.choice(self.responses['fallback'])
@@ -259,10 +291,17 @@ def dashboard():
         Immunisation.date >= date.today()
     ).order_by(Immunisation.date.asc()).limit(5).all()
     
+    # Get upcoming appointments
+    upcoming_appointments = DoctorAppointment.query.filter(
+        DoctorAppointment.user_id == user_id,
+        DoctorAppointment.appointment_date >= datetime.now()
+    ).order_by(DoctorAppointment.appointment_date.asc()).limit(3).all()
+    
     return render_template('dashboard.html', 
                           user=user, 
                           latest_vitals=latest_vitals,
-                          upcoming_immunisations=upcoming_immunisations)
+                          upcoming_immunisations=upcoming_immunisations,
+                          upcoming_appointments=upcoming_appointments)
 
 @app.route('/vitals', methods=['GET', 'POST'])
 def vitals():
@@ -421,6 +460,116 @@ def prediction():
     latest_vitals = Vitals.query.filter_by(user_id=user_id).order_by(Vitals.date_recorded.desc()).first()
     
     return render_template('prediction.html', latest_vitals=latest_vitals, show_result=False)
+
+# New Features Routes
+
+@app.route('/doctors')
+def doctors():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    specialization = request.args.get('specialization', '')
+    
+    if specialization:
+        filtered_doctors = [doc for doc in DOCTORS if specialization.lower() in doc['specialization'].lower()]
+    else:
+        filtered_doctors = DOCTORS
+    
+    return render_template('doctors.html', doctors=filtered_doctors, specialization=specialization)
+
+@app.route('/book_appointment', methods=['GET', 'POST'])
+def book_appointment():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user_id = session['user_id']
+    
+    if request.method == 'POST':
+        doctor_name = request.form['doctor_name']
+        specialization = request.form['specialization']
+        appointment_date = request.form['appointment_date']
+        symptoms = request.form['symptoms']
+        
+        # Convert date string to datetime
+        appointment_datetime = datetime.strptime(appointment_date, '%Y-%m-%dT%H:%M')
+        
+        # Create new appointment
+        new_appointment = DoctorAppointment(
+            user_id=user_id,
+            doctor_name=doctor_name,
+            specialization=specialization,
+            appointment_date=appointment_datetime,
+            symptoms=symptoms
+        )
+        
+        db.session.add(new_appointment)
+        db.session.commit()
+        
+        flash('Appointment booked successfully!', 'success')
+        return redirect(url_for('appointments'))
+    
+    doctor_name = request.args.get('doctor', '')
+    specialization = request.args.get('specialization', '')
+    
+    return render_template('book_appointment.html', 
+                         doctor_name=doctor_name, 
+                         specialization=specialization,
+                         doctors=DOCTORS,
+                         now=datetime.now())
+
+@app.route('/appointments')
+def appointments():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user_id = session['user_id']
+    appointments = DoctorAppointment.query.filter_by(user_id=user_id).order_by(DoctorAppointment.appointment_date.desc()).all()
+    
+    return render_template('appointments.html', appointments=appointments,now=datetime.now())
+
+@app.route('/emergency')
+def emergency():
+    return render_template('emergency.html')
+
+@app.route('/api/nearby_hospitals')
+def nearby_hospitals():
+    # In a real app, you would use Google Places API or similar
+    # For demo, we'll return sample data
+    lat = request.args.get('lat')
+    lng = request.args.get('lng')
+    
+    # Sample hospital data (in real app, this would come from an API)
+    sample_hospitals = [
+        {
+            'name': 'City General Hospital',
+            'address': '123 Medical Center, Downtown',
+            'distance': '1.2 km',
+            'phone': '+1-234-567-8900',
+            'emergency': True,
+            'lat': float(lat) + 0.01 if lat else 28.6139,
+            'lng': float(lng) + 0.01 if lng else 77.2090
+        },
+        {
+            'name': 'Community Health Center',
+            'address': '456 Health Street, Midtown',
+            'distance': '2.5 km',
+            'phone': '+1-234-567-8901',
+            'emergency': True,
+            'lat': float(lat) - 0.01 if lat else 28.6039,
+            'lng': float(lng) - 0.01 if lng else 77.1990
+        },
+        {
+            'name': 'Metropolitan Hospital',
+            'address': '789 Care Avenue, Uptown',
+            'distance': '3.1 km',
+            'phone': '+1-234-567-8902',
+            'emergency': True,
+            'lat': float(lat) + 0.02 if lat else 28.6239,
+            'lng': float(lng) - 0.02 if lng else 77.1890
+        }
+    ]
+    
+    return jsonify(sample_hospitals)
 
 # Chatbot Routes
 @app.route('/chatbot')
