@@ -4,4 +4,8 @@ Werkzeug==2.3.7
 scikit-learn
 numpy
 joblib
+<<<<<<< HEAD
 gunicorn
+=======
+gunicorn
+>>>>>>> df471f64c06206310b6f32071f732446c9e84cb5
