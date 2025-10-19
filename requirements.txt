@@ -5,5 +5,3 @@ scikit-learn
 numpy 
 joblib 
 gunicorn 
-python-dotenv 
-Pillow
