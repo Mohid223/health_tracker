@@ -3,28 +3,60 @@
 {% block title %}Find Doctors - Health Tracker{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row">
+<div class="container py-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
         <div class="col-12">
-            <h2>Find Doctors</h2>
-            <p class="text-muted">Book appointments with specialized doctors</p>
+            <h2 class="mb-2">Find Doctors</h2>
+            <p class="text-muted">Book appointments with specialized healthcare professionals</p>
         </div>
     </div>
 
-    <!-- Search Filters -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <h5 class="card-title">Search Doctors</h5>
-            <form method="GET" class="row g-3">
-                <div class="col-md-8">
-                    <input type="text" name="specialization" class="form-control" 
-                           placeholder="Search by specialization (e.g., Cardiologist, Physician)" 
-                           value="{{ specialization }}">
+    <!-- Location and Search Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Search Doctors</h5>
+                    
+                    <!-- Location Selection -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Select Your Location:</label>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-outline-primary flex-fill" onclick="useCurrentLocation()">
+                                    <i class="fas fa-location-arrow me-2"></i>Use Current Location
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary flex-fill" data-bs-toggle="modal" data-bs-target="#locationModal">
+                                    <i class="fas fa-map-marker-alt me-2"></i>Select City
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div id="locationInfo" class="p-3 bg-light rounded">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Select your location to find nearby doctors
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Search Form -->
+                    <form method="GET" class="row g-2">
+                        <div class="col-md-8">
+                            <input type="text" name="specialization" class="form-control" 
+                                   placeholder="Search by specialization (e.g., Cardiologist, Physician)" 
+                                   value="{{ specialization }}">
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search me-2"></i>Search
+                            </button>
+                        </div>
+                    </form>
                 </div>
-                <div class="col-md-4">
-                    <button type="submit" class="btn btn-primary w-100">Search</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 
@@ -33,37 +65,40 @@
         {% if doctors %}
             {% for doctor in doctors %}
             <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100">
+                <div class="card h-100 doctor-card">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start mb-3">
-                            <h5 class="card-title">{{ doctor.name }}</h5>
+                            <h5 class="card-title text-primary">{{ doctor.name }}</h5>
                             <span class="badge bg-primary">{{ doctor.specialization }}</span>
                         </div>
                         
                         <div class="doctor-info mb-3">
-                            <p class="mb-1"><strong>Experience:</strong> {{ doctor.experience }}</p>
-                            <p class="mb-1"><strong>Rating:</strong> 
-                                <span class="text-warning">
-                                    {% for i in range(5) %}
-                                        {% if i < doctor.rating|int %}
-                                            ★
-                                        {% else %}
-                                            ☆
-                                        {% endif %}
-                                    {% endfor %}
-                                </span>
-                                ({{ doctor.rating }})
-                            </p>
+                            <div class="mb-2">
+                                <i class="fas fa-briefcase text-muted me-2"></i>
+                                <span class="small">{{ doctor.experience }} experience</span>
+                            </div>
+                            <div class="mb-2">
+                                <i class="fas fa-star text-warning me-2"></i>
+                                <span class="small">{{ doctor.rating }}/5 rating</span>
+                            </div>
+                            <div class="mb-2">
+                                <i class="fas fa-map-marker-alt text-muted me-2"></i>
+                                <span class="small">{{ doctor.distance }} away</span>
+                            </div>
+                            <div class="mb-2">
+                                <i class="fas fa-rupee-sign text-muted me-2"></i>
+                                <span class="small">Fee: {{ doctor.fee }}</span>
+                            </div>
                         </div>
 
                         <div class="doctor-actions">
                             <a href="{{ url_for('book_appointment', doctor=doctor.name, specialization=doctor.specialization) }}" 
-                               class="btn btn-primary btn-sm">
-                                Book Appointment
+                               class="btn btn-primary btn-sm flex-fill">
+                                <i class="fas fa-calendar-check me-1"></i>Book Appointment
                             </a>
-                            <button class="btn btn-outline-secondary btn-sm" 
-                                    onclick="showDoctorDetails('{{ doctor.name }}', '{{ doctor.specialization }}', '{{ doctor.experience }}', '{{ doctor.rating }}')">
-                                View Details
+                            <button class="btn btn-outline-secondary btn-sm flex-fill" 
+                                    onclick="showDoctorDetails('{{ doctor.name }}', '{{ doctor.specialization }}', '{{ doctor.experience }}', '{{ doctor.rating }}', '{{ doctor.fee }}', '{{ doctor.location }}')">
+                                <i class="fas fa-info-circle me-1"></i>Details
                             </button>
                         </div>
                     </div>
@@ -72,8 +107,10 @@
             {% endfor %}
         {% else %}
             <div class="col-12">
-                <div class="alert alert-info">
-                    No doctors found matching your search criteria. Try a different specialization.
+                <div class="alert alert-info text-center py-4">
+                    <i class="fas fa-search fa-2x mb-3 d-block text-muted"></i>
+                    <h5>No doctors found</h5>
+                    <p class="mb-0">Try a different specialization or adjust your search criteria.</p>
                 </div>
             </div>
         {% endif %}
@@ -82,7 +119,7 @@
     <!-- Quick Specialization Filters -->
     <div class="card mt-4">
         <div class="card-body">
-            <h6 class="card-title">Quick Filters</h6>
+            <h6 class="card-title mb-3">Browse by Specialization</h6>
             <div class="d-flex flex-wrap gap-2">
                 <a href="{{ url_for('doctors', specialization='Cardiologist') }}" class="btn btn-outline-primary btn-sm">Cardiologist</a>
                 <a href="{{ url_for('doctors', specialization='Physician') }}" class="btn btn-outline-primary btn-sm">General Physician</a>
@@ -90,7 +127,45 @@
                 <a href="{{ url_for('doctors', specialization='Orthopedic') }}" class="btn btn-outline-primary btn-sm">Orthopedic</a>
                 <a href="{{ url_for('doctors', specialization='Pediatrician') }}" class="btn btn-outline-primary btn-sm">Pediatrician</a>
                 <a href="{{ url_for('doctors', specialization='Dermatologist') }}" class="btn btn-outline-primary btn-sm">Dermatologist</a>
-                <a href="{{ url_for('doctors') }}" class="btn btn-outline-secondary btn-sm">Show All</a>
+                <a href="{{ url_for('doctors', specialization='Gynecologist') }}" class="btn btn-outline-primary btn-sm">Gynecologist</a>
+                <a href="{{ url_for('doctors', specialization='Psychiatrist') }}" class="btn btn-outline-primary btn-sm">Psychiatrist</a>
+                <a href="{{ url_for('doctors') }}" class="btn btn-outline-secondary btn-sm">Show All Doctors</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Location Selection Modal -->
+<div class="modal fade" id="locationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Select Your City</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Choose your city:</label>
+                    <select class="form-select" id="citySelect">
+                        <option value="">-- Select City --</option>
+                        <option value="delhi">Delhi</option>
+                        <option value="mumbai">Mumbai</option>
+                        <option value="chennai">Chennai</option>
+                        <option value="kolkata">Kolkata</option>
+                        <option value="bangalore">Bangalore</option>
+                        <option value="hyderabad">Hyderabad</option>
+                        <option value="ahmedabad">Ahmedabad</option>
+                        <option value="pune">Pune</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Or enter custom location:</label>
+                    <input type="text" class="form-control" id="customLocation" placeholder="Enter your area or city">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="useSelectedLocation()">Find Doctors</button>
             </div>
         </div>
     </div>
@@ -121,18 +196,131 @@
 {% block scripts %}
 {{ super() }}
 <script>
-function showDoctorDetails(name, specialization, experience, rating) {
+let currentLocation = '';
+let currentCity = '';
+
+// City coordinates database
+const cityCoordinates = {
+    'delhi': { lat: 28.6139, lng: 77.2090, name: 'Delhi' },
+    'mumbai': { lat: 19.0760, lng: 72.8777, name: 'Mumbai' },
+    'chennai': { lat: 13.0827, lng: 80.2707, name: 'Chennai' },
+    'kolkata': { lat: 22.5726, lng: 88.3639, name: 'Kolkata' },
+    'bangalore': { lat: 12.9716, lng: 77.5946, name: 'Bangalore' },
+    'hyderabad': { lat: 17.3850, lng: 78.4867, name: 'Hyderabad' },
+    'ahmedabad': { lat: 23.0225, lng: 72.5714, name: 'Ahmedabad' },
+    'pune': { lat: 18.5204, lng: 73.8567, name: 'Pune' }
+};
+
+function useCurrentLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                currentLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                currentCity = 'Current Location';
+                updateLocationInfo('Using your current location');
+                searchDoctors();
+            },
+            function(error) {
+                handleLocationError('Please allow location access or select your city manually.');
+            }
+        );
+    } else {
+        handleLocationError('Geolocation is not supported by your browser. Please select your city.');
+    }
+}
+
+function useSelectedLocation() {
+    const citySelect = document.getElementById('citySelect').value;
+    const customLocation = document.getElementById('customLocation').value;
+    
+    if (citySelect) {
+        currentLocation = cityCoordinates[citySelect];
+        currentCity = currentLocation.name;
+        updateLocationInfo(`Searching in ${currentCity}`);
+    } else if (customLocation) {
+        currentCity = customLocation;
+        updateLocationInfo(`Searching in ${customLocation}`);
+        currentLocation = getRandomCoordinates();
+    } else {
+        alert('Please select a city or enter a location.');
+        return;
+    }
+    
+    searchDoctors();
+    $('#locationModal').modal('hide');
+}
+
+function updateLocationInfo(message) {
+    document.getElementById('locationInfo').innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="fas fa-check-circle text-success me-2"></i>
+            <span class="text-success">${message}</span>
+        </div>
+    `;
+}
+
+function getRandomCoordinates() {
+    const lat = 28.6139 + (Math.random() - 0.5) * 0.1;
+    const lng = 77.2090 + (Math.random() - 0.5) * 0.1;
+    return { lat, lng };
+}
+
+function handleLocationError(message) {
+    document.getElementById('locationInfo').innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+            <span class="text-warning">${message}</span>
+        </div>
+    `;
+}
+
+function searchDoctors() {
+    // In real implementation, this would call your backend API
+    // with location parameters
+    console.log('Searching doctors in:', currentCity);
+    // You can reload the page with location parameters or use AJAX
+    window.location.href = `{{ url_for('doctors') }}?location=${encodeURIComponent(currentCity)}`;
+}
+
+function showDoctorDetails(name, specialization, experience, rating, fee, location) {
     const modal = new bootstrap.Modal(document.getElementById('doctorModal'));
     document.getElementById('doctorModalTitle').textContent = name;
     
     const detailsHtml = `
         <div class="doctor-detail">
-            <h6>${specialization}</h6>
-            <p><strong>Experience:</strong> ${experience}</p>
-            <p><strong>Rating:</strong> ${rating}/5</p>
-            <p><strong>Availability:</strong> Monday - Friday, 9:00 AM - 5:00 PM</p>
-            <p><strong>Consultation Fee:</strong> ₹500 - ₹1000</p>
-            <p class="text-success"><strong>✅ Available for Online Consultation</strong></p>
+            <h6 class="text-primary mb-3">${specialization}</h6>
+            
+            <div class="detail-item mb-2">
+                <i class="fas fa-briefcase text-muted me-2"></i>
+                <strong>Experience:</strong> ${experience}
+            </div>
+            
+            <div class="detail-item mb-2">
+                <i class="fas fa-star text-warning me-2"></i>
+                <strong>Rating:</strong> ${rating}/5
+            </div>
+            
+            <div class="detail-item mb-2">
+                <i class="fas fa-map-marker-alt text-muted me-2"></i>
+                <strong>Location:</strong> ${location}
+            </div>
+            
+            <div class="detail-item mb-3">
+                <i class="fas fa-rupee-sign text-muted me-2"></i>
+                <strong>Consultation Fee:</strong> ${fee}
+            </div>
+            
+            <div class="availability-info">
+                <h6 class="mb-2">Availability</h6>
+                <p class="small mb-1">Monday - Friday: 9:00 AM - 5:00 PM</p>
+                <p class="small mb-1">Saturday: 9:00 AM - 1:00 PM</p>
+                <p class="text-success small mb-0">
+                    <i class="fas fa-video me-1"></i>Available for Online Consultation
+                </p>
+            </div>
         </div>
     `;
     
@@ -151,31 +339,58 @@ function bookSelectedDoctor() {
     
     window.location.href = `/book_appointment?doctor=${encodeURIComponent(doctorName)}&specialization=${encodeURIComponent(specialization)}`;
     
-    // Close modal
     const modal = bootstrap.Modal.getInstance(document.getElementById('doctorModal'));
     modal.hide();
 }
 </script>
 
 <style>
+.doctor-card {
+    transition: all 0.3s ease;
+    border: 1px solid #e9ecef;
+}
+
+.doctor-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    border-color: #007bff;
+}
+
 .doctor-info {
     border-left: 3px solid #007bff;
     padding-left: 15px;
+    background-color: #f8f9fa;
+    border-radius: 0 8px 8px 0;
 }
 
 .doctor-actions {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
 }
 
-.card {
-    transition: transform 0.2s;
+.detail-item {
+    padding: 4px 0;
 }
 
-.card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+.availability-info {
+    background-color: #f8f9fa;
+    padding: 12px;
+    border-radius: 6px;
+    border-left: 3px solid #28a745;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.btn {
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
 }
 </style>
 {% endblock %}

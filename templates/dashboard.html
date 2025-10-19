@@ -1,73 +1,135 @@
-{% extends "base.html" %}
+ {% extends "base.html" %}
 
-{% block title %}Dashboard - Health World {% endblock %}
+{% block title %}Dashboard - Health World{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="display-5">Welcome, {{ user.username }}!</h1>
-        <p class="lead">Here's your health overview</p>
+<!-- Floating Chatbot Icon -->
+<div class="floating-chatbot" id="floatingChatbot">
+    <div class="chatbot-icon" data-bs-toggle="tooltip" data-bs-placement="left" title="Ask Health Assistant">
+        <i class="fas fa-robot"></i>
+        <span class="chatbot-pulse"></span>
     </div>
 </div>
 
-<!-- Stats Cards -->
+<!-- Quick Actions Bar -->
+<div class="quick-actions-bar mb-4">
+    <div class="container-fluid">
+        <div class="row g-2">
+            <div class="col-auto">
+                <a href="{{ url_for('vitals') }}" class="btn btn-primary btn-sm quick-action-btn">
+                    <i class=""></i>Record Vitals
+                </a>
+            </div>
+            <div class="col-auto">
+                <a href="{{ url_for('prediction') }}" class="btn btn-info btn-sm quick-action-btn">
+                    <i class=" "></i>Health Prediction
+                </a>
+            </div>
+            <div class="col-auto">
+                <a href="{{ url_for('doctors') }}" class="btn btn-success btn-sm quick-action-btn">
+                    <i class=" "></i>Find Doctors
+                </a>
+            </div>
+            <div class="col-auto">
+                <a href="{{ url_for('emergency') }}" class="btn btn-danger btn-sm quick-action-btn">
+                    <i class=" "></i>Emergency
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row mb-4">
-    <div class="col-md-3 mb-3">
-        <div class="card bg-primary text-white">
+    <div class="col">
+        <div class="welcome-section">
+            <h1 class="display-5 fw-bold text-gradient">Hello, {{ user.username }}! 👋</h1>
+            <p class="lead text-muted">Here's your complete health overview</p>
+            <div class="current-time" id="currentTime"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Health Stats Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card bg-gradient-primary hover-lift">
             <div class="card-body">
-                <div class="d-flex justify-content-between">
+                <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h4 class="card-title">{{ user.vitals|length }}</h4>
-                        <p class="card-text">Vitals Records</p>
+                        <h2 class="card-stat">{{ user.vitals|length }}</h2>
+                        <p class="card-stat-label">Vitals Records</p>
+                        <small class="text-white-50">Last: {% if latest_vitals %}{{ latest_vitals.date_recorded.strftime('%b %d') }}{% else %}Never{% endif %}</small>
                     </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-heartbeat fa-2x"></i>
+                    <div class="stat-icon">
+                        <i class="fas fa-heartbeat"></i>
                     </div>
+                </div>
+                <div class="progress mt-2" style="height: 4px;">
+                    {% set vitals_width = (user.vitals|length / 10 * 100) %}
+                    <div class="progress-bar bg-white" style="width: {{ vitals_width if vitals_width <= 100 else 100 }}%"></div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-3">
-        <div class="card bg-success text-white">
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card bg-gradient-success hover-lift">
             <div class="card-body">
-                <div class="d-flex justify-content-between">
+                <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h4 class="card-title">{{ user.immunisations|length }}</h4>
-                        <p class="card-text">Immunisations</p>
+                        <h2 class="card-stat">{{ user.immunisations|length }}</h2>
+                        <p class="card-stat-label">Immunisations</p>
+                        <small class="text-white-50">Completed</small>
                     </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-syringe fa-2x"></i>
+                    <div class="stat-icon">
+                        <i class="fas fa-syringe"></i>
                     </div>
+                </div>
+                <div class="progress mt-2" style="height: 4px;">
+                    {% set immunisations_width = (user.immunisations|length / 5 * 100) %}
+                    <div class="progress-bar bg-white" style="width: {{ immunisations_width if immunisations_width <= 100 else 100 }}%"></div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-3">
-        <div class="card bg-info text-white">
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card bg-gradient-info hover-lift">
             <div class="card-body">
-                <div class="d-flex justify-content-between">
+                <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h4 class="card-title">{{ user.predictions|length }}</h4>
-                        <p class="card-text">Predictions</p>
+                        <h2 class="card-stat">{{ user.predictions|length }}</h2>
+                        <p class="card-stat-label">Health Predictions</p>
+                        <small class="text-white-50">AI Analysis</small>
                     </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-chart-line fa-2x"></i>
+                    <div class="stat-icon">
+                        <i class="fas fa-brain"></i>
                     </div>
+                </div>
+                <div class="progress mt-2" style="height: 4px;">
+                    {% set predictions_width = (user.predictions|length / 5 * 100) %}
+                    <div class="progress-bar bg-white" style="width: {{ predictions_width if predictions_width <= 100 else 100 }}%"></div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-3">
-        <div class="card bg-warning text-dark">
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card bg-gradient-warning hover-lift">
             <div class="card-body">
-                <div class="d-flex justify-content-between">
+                <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h4 class="card-title">{{ upcoming_immunisations|length }}</h4>
-                        <p class="card-text">Upcoming Vaccines</p>
+                        <h2 class="card-stat">{{ upcoming_immunisations|length }}</h2>
+                        <p class="card-stat-label">Upcoming Vaccines</p>
+                        <small class="text-white-50">Next due soon</small>
                     </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-bell fa-2x"></i>
+                    <div class="stat-icon">
+                        <i class="fas fa-bell"></i>
                     </div>
+                </div>
+                <div class="progress mt-2" style="height: 4px;">
+                    {% set upcoming_width = (upcoming_immunisations|length / 3 * 100) %}
+                    <div class="progress-bar bg-white" style="width: {{ upcoming_width if upcoming_width <= 100 else 100 }}%"></div>
                 </div>
             </div>
         </div>
@@ -75,86 +137,250 @@
 </div>
 
 <div class="row">
-    <!-- Latest Vitals -->
-    <div class="col-md-6 mb-4">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0"><i class="fas fa-heartbeat me-2"></i>Latest Vitals</h5>
+    <!-- Latest Vitals Card -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-heartbeat me-2"></i>Latest Health Vitals</h5>
+                <span class="badge bg-light text-primary">Recent</span>
             </div>
             <div class="card-body">
                 {% if latest_vitals %}
-                <div class="row">
-                    <div class="col-6 mb-2">
-                        <strong>Weight:</strong> {{ "%.1f"|format(latest_vitals.weight) }} kg
+                <div class="vitals-grid">
+                    <div class="vital-item">
+                        <div class="vital-icon">
+                            <i class="fas fa-weight"></i>
+                        </div>
+                        <div class="vital-info">
+                            <span class="vital-label">Weight</span>
+                            <span class="vital-value">{{ "%.1f"|format(latest_vitals.weight) }} kg</span>
+                        </div>
                     </div>
-                    <div class="col-6 mb-2">
-                        <strong>BMI:</strong> {{ "%.1f"|format(latest_vitals.bmi) }}
+                    <div class="vital-item">
+                        <div class="vital-icon">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <div class="vital-info">
+                            <span class="vital-label">BMI</span>
+                            <span class="vital-value">{{ "%.1f"|format(latest_vitals.bmi) }}</span>
+                        </div>
                     </div>
-                    <div class="col-6 mb-2">
-                        <strong>Blood Pressure:</strong> {{ latest_vitals.bp_systolic }}/{{ latest_vitals.bp_diastolic }}
+                    <div class="vital-item">
+                        <div class="vital-icon">
+                            <i class="fas fa-tachometer-alt"></i>
+                        </div>
+                        <div class="vital-info">
+                            <span class="vital-label">Blood Pressure</span>
+                            <span class="vital-value {% if latest_vitals.bp_systolic > 140 or latest_vitals.bp_diastolic > 90 %}text-danger{% endif %}">
+                                {{ latest_vitals.bp_systolic }}/{{ latest_vitals.bp_diastolic }}
+                            </span>
+                        </div>
                     </div>
-                    <div class="col-6 mb-2">
-                        <strong>Heart Rate:</strong> {{ latest_vitals.heart_rate }} bpm
+                    <div class="vital-item">
+                        <div class="vital-icon">
+                            <i class="fas fa-heart"></i>
+                        </div>
+                        <div class="vital-info">
+                            <span class="vital-label">Heart Rate</span>
+                            <span class="vital-value {% if latest_vitals.heart_rate > 100 or latest_vitals.heart_rate < 60 %}text-warning{% endif %}">
+                                {{ latest_vitals.heart_rate }} bpm
+                            </span>
+                        </div>
                     </div>
-                    <div class="col-6 mb-2">
-                        <strong>Glucose:</strong> {{ "%.1f"|format(latest_vitals.glucose) }} mg/dL
+                    <div class="vital-item">
+                        <div class="vital-icon">
+                            <i class="fas fa-vial"></i>
+                        </div>
+                        <div class="vital-info">
+                            <span class="vital-label">Glucose</span>
+                            <span class="vital-value {% if latest_vitals.glucose > 140 %}text-danger{% endif %}">
+                                {{ "%.1f"|format(latest_vitals.glucose) }} mg/dL
+                            </span>
+                        </div>
                     </div>
-                    <div class="col-6 mb-2">
-                        <strong>Temperature:</strong> {{ "%.1f"|format(latest_vitals.temperature) }}°C
-                    </div>
-                    <div class="col-12">
-                        <small class="text-muted">Recorded on {{ latest_vitals.date_recorded.strftime('%Y-%m-%d') }}</small>
+                    <div class="vital-item">
+                        <div class="vital-icon">
+                            <i class="fas fa-thermometer-half"></i>
+                        </div>
+                        <div class="vital-info">
+                            <span class="vital-label">Temperature</span>
+                            <span class="vital-value {% if latest_vitals.temperature > 38 %}text-danger{% endif %}">
+                                {{ "%.1f"|format(latest_vitals.temperature) }}°C
+                            </span>
+                        </div>
                     </div>
                 </div>
+                <div class="mt-3 text-center">
+                    <small class="text-muted">
+                        <i class="fas fa-clock me-1"></i>
+                        Recorded on {{ latest_vitals.date_recorded.strftime('%B %d, %Y at %I:%M %p') }}
+                    </small>
+                </div>
                 {% else %}
-                <p class="text-muted">No vitals recorded yet.</p>
+                <div class="text-center py-4">
+                    <div class="empty-state">
+                        <i class="fas fa-heartbeat fa-3x text-muted mb-3"></i>
+                        <h5>No Vitals Recorded</h5>
+                        <p class="text-muted">Start tracking your health metrics</p>
+                    </div>
+                </div>
                 {% endif %}
-                <div class="mt-3">
-                    <a href="{{ url_for('vitals') }}" class="btn btn-primary btn-sm">Record New Vitals</a>
+                <div class="mt-3 d-grid">
+                    <a href="{{ url_for('vitals') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Record New Vitals
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Upcoming Immunisations -->
-    <div class="col-md-6 mb-4">
-        <div class="card">
-            <div class="card-header bg-success text-white">
-                <h5 class="mb-0"><i class="fas fa-syringe me-2"></i>Upcoming Immunisations</h5>
+    <!-- Upcoming Activities -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Upcoming Activities</h5>
+                <span class="badge bg-light text-success">{{ (upcoming_immunisations|length + upcoming_appointments|length) }}</span>
             </div>
             <div class="card-body">
-                {% if upcoming_immunisations %}
-                <div class="list-group list-group-flush">
-                    {% for immunisation in upcoming_immunisations %}
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-1">{{ immunisation.vaccine_name }}</h6>
-                            <small class="text-muted">Due: {{ immunisation.next_due_date.strftime('%Y-%m-%d') }}</small>
+                <!-- Upcoming Appointments -->
+                {% if upcoming_appointments %}
+                <h6 class="text-success mb-3"><i class="fas fa-user-md me-1"></i>Doctor Appointments</h6>
+                <div class="activity-list">
+                    {% for appointment in upcoming_appointments %}
+                    <div class="activity-item appointment">
+                        <div class="activity-icon">
+                            <i class="fas fa-stethoscope"></i>
                         </div>
-                        <span class="badge bg-primary rounded-pill">{{ (immunisation.next_due_date - today).days }} days</span>
+                        <div class="activity-content">
+                            <div class="activity-title">{{ appointment.doctor_name }}</div>
+                            <div class="activity-subtitle">{{ appointment.specialization }}</div>
+                            <div class="activity-time">
+                                <i class="fas fa-clock me-1"></i>
+                                {{ appointment.appointment_date.strftime('%b %d, %Y at %I:%M %p') }}
+                            </div>
+                        </div>
+                        <div class="activity-badge">
+                            <span class="badge bg-success">In {{ (appointment.appointment_date.date() - today).days }} days</span>
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
-                {% else %}
-                <p class="text-muted">No upcoming immunisations.</p>
                 {% endif %}
-                <div class="mt-3">
-                    <a href="{{ url_for('immunisation') }}" class="btn btn-success btn-sm">Add Immunisation</a>
+
+                <!-- Upcoming Immunisations -->
+                {% if upcoming_immunisations %}
+                <h6 class="text-info mt-4 mb-3"><i class="fas fa-syringe me-1"></i>Vaccinations Due</h6>
+                <div class="activity-list">
+                    {% for immunisation in upcoming_immunisations %}
+                    <div class="activity-item immunisation">
+                        <div class="activity-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-title">{{ immunisation.vaccine_name }}</div>
+                            <div class="activity-subtitle">Next dose due</div>
+                            <div class="activity-time">
+                                <i class="fas fa-calendar me-1"></i>
+                                {{ immunisation.next_due_date.strftime('%B %d, %Y') }}
+                            </div>
+                        </div>
+                        <div class="activity-badge">
+                            <span class="badge bg-info">{{ (immunisation.next_due_date - today).days }} days</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if not upcoming_appointments and not upcoming_immunisations %}
+                <div class="text-center py-4">
+                    <div class="empty-state">
+                        <i class="fas fa-calendar-check fa-3x text-muted mb-3"></i>
+                        <h5>No Upcoming Activities</h5>
+                        <p class="text-muted">Schedule appointments or add immunisations</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="mt-3 d-grid gap-2">
+                    <a href="{{ url_for('book_appointment') }}" class="btn btn-success">
+                        <i class="fas fa-plus me-1"></i>Book Appointment
+                    </a>
+                    <a href="{{ url_for('immunisation') }}" class="btn btn-outline-success">
+                        <i class="fas fa-syringe me-1"></i>Add Immunisation
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Health Charts -->
+<!-- Health Analytics -->
 <div class="row mt-4">
     <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-info text-white">
-                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Health Trends</h5>
+        <div class="card shadow-sm">
+            <div class="card-header bg-gradient-info text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Health Analytics & Trends</h5>
+                <div class="chart-controls">
+                    <button class="btn btn-light btn-sm" onclick="refreshChart()">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
             </div>
             <div class="card-body">
-                <canvas id="healthChart" width="400" height="150"></canvas>
+                <div id="chartContainer">
+                    <canvas id="healthChart" width="400" height="150"></canvas>
+                </div>
+                <div id="chartPlaceholder" class="text-center py-5" style="display: none;">
+                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                    <h5>Not Enough Data</h5>
+                    <p class="text-muted">Record more vitals to see your health trends</p>
+                    <a href="{{ url_for('vitals') }}" class="btn btn-primary mt-2">
+                        <i class="fas fa-plus me-1"></i>Record Vitals
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Health Tips -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-gradient-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Daily Health Tips</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="tip-card">
+                            <div class="tip-icon bg-primary">
+                                <i class="fas fa-glass-whiskey"></i>
+                            </div>
+                            <h6>Stay Hydrated</h6>
+                            <p class="text-muted small">Drink at least 8 glasses of water daily for optimal health.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="tip-card">
+                            <div class="tip-icon bg-success">
+                                <i class="fas fa-walking"></i>
+                            </div>
+                            <h6>Daily Exercise</h6>
+                            <p class="text-muted small">30 minutes of moderate activity can boost your health.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="tip-card">
+                            <div class="tip-icon bg-info">
+                                <i class="fas fa-apple-alt"></i>
+                            </div>
+                            <h6>Balanced Diet</h6>
+                            <p class="text-muted small">Include fruits, vegetables, and whole grains in your meals.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -162,12 +388,54 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+// Update current time
+function updateCurrentTime() {
+    const now = new Date();
+    const options = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    };
+    document.getElementById('currentTime').textContent = now.toLocaleDateString('en-US', options);
+}
+updateCurrentTime();
+setInterval(updateCurrentTime, 60000);
+
+// Initialize floating chatbot
 document.addEventListener('DOMContentLoaded', function() {
+    const floatingChatbot = document.getElementById('floatingChatbot');
+    
+    floatingChatbot.addEventListener('click', function() {
+        window.location.href = "{{ url_for('chatbot') }}";
+    });
+
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Load health chart
+    loadHealthChart();
+});
+
+function loadHealthChart() {
     fetch('/api/vitals/chart')
         .then(response => response.json())
         .then(data => {
-            if (data.dates && data.dates.length > 0) {
+            const chartContainer = document.getElementById('chartContainer');
+            const chartPlaceholder = document.getElementById('chartPlaceholder');
+            
+            if (data.dates && data.dates.length > 1) {
+                chartContainer.style.display = 'block';
+                chartPlaceholder.style.display = 'none';
+                
                 const ctx = document.getElementById('healthChart').getContext('2d');
                 new Chart(ctx, {
                     type: 'line',
@@ -177,66 +445,380 @@ document.addEventListener('DOMContentLoaded', function() {
                             {
                                 label: 'Weight (kg)',
                                 data: data.weights,
-                                borderColor: 'rgb(255, 99, 132)',
-                                tension: 0.1,
+                                borderColor: '#007bff',
+                                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                                tension: 0.4,
+                                fill: true,
                                 yAxisID: 'y'
                             },
                             {
                                 label: 'BMI',
                                 data: data.bmis,
-                                borderColor: 'rgb(54, 162, 235)',
-                                tension: 0.1,
+                                borderColor: '#6f42c1',
+                                backgroundColor: 'rgba(111, 66, 193, 0.1)',
+                                tension: 0.4,
+                                fill: true,
                                 yAxisID: 'y'
                             },
                             {
                                 label: 'Heart Rate (bpm)',
                                 data: data.heart_rates,
-                                borderColor: 'rgb(75, 192, 192)',
-                                tension: 0.1,
+                                borderColor: '#20c997',
+                                backgroundColor: 'rgba(32, 201, 151, 0.1)',
+                                tension: 0.4,
+                                fill: true,
                                 yAxisID: 'y1'
-                            },
-                            {
-                                label: 'Glucose (mg/dL)',
-                                data: data.glucose_levels,
-                                borderColor: 'rgb(153, 102, 255)',
-                                tension: 0.1,
-                                yAxisID: 'y'
                             }
                         ]
                     },
                     options: {
                         responsive: true,
+                        maintainAspectRatio: false,
                         interaction: {
                             mode: 'index',
                             intersect: false,
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Your Health Progress Over Time'
+                            }
                         },
                         scales: {
                             y: {
                                 type: 'linear',
                                 display: true,
                                 position: 'left',
+                                title: {
+                                    display: true,
+                                    text: 'Weight & BMI'
+                                }
                             },
                             y1: {
                                 type: 'linear',
                                 display: true,
                                 position: 'right',
+                                title: {
+                                    display: true,
+                                    text: 'Heart Rate (bpm)'
+                                },
                                 grid: {
                                     drawOnChartArea: false,
                                 },
-                            },
+                            }
                         }
                     }
                 });
             } else {
-                document.getElementById('healthChart').parentElement.innerHTML = 
-                    '<p class="text-muted text-center py-4">No enough data to display charts. Record some vitals first!</p>';
+                chartContainer.style.display = 'none';
+                chartPlaceholder.style.display = 'block';
             }
         })
         .catch(error => {
             console.error('Error fetching chart data:', error);
-            document.getElementById('healthChart').parentElement.innerHTML = 
-                '<p class="text-muted text-center py-4">Error loading chart data.</p>';
+            document.getElementById('chartContainer').style.display = 'none';
+            document.getElementById('chartPlaceholder').style.display = 'block';
         });
-});
+}
+
+function refreshChart() {
+    const chart = Chart.getChart('healthChart');
+    if (chart) {
+        chart.destroy();
+    }
+    loadHealthChart();
+}
 </script>
+
+<style>
+/* Gradient Text */
+.text-gradient {
+    background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Gradient Backgrounds */
+.bg-gradient-primary { background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); }
+.bg-gradient-success { background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); }
+.bg-gradient-info { background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); }
+.bg-gradient-warning { background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); }
+.bg-gradient-secondary { background: linear-gradient(135deg, #6c757d 0%, #545b62 100%); }
+
+/* Stats Cards */
+.stats-card {
+    border: none;
+    border-radius: 15px;
+    transition: all 0.3s ease;
+    color: white;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+.card-stat {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.card-stat-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    margin-bottom: 0.25rem;
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+    opacity: 0.8;
+}
+
+/* Quick Actions Bar */
+.quick-actions-bar {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 1rem 0;
+    border-radius: 10px;
+    border: 1px solid #e9ecef;
+}
+
+.quick-action-btn {
+    border-radius: 20px;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.quick-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+/* Vitals Grid */
+.vitals-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.vital-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.vital-item:hover {
+    background: #e9ecef;
+    transform: translateX(5px);
+}
+
+.vital-icon {
+    width: 40px;
+    height: 40px;
+    background: #007bff;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    margin-right: 1rem;
+}
+
+.vital-info {
+    flex: 1;
+}
+
+.vital-label {
+    display: block;
+    font-size: 0.8rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.vital-value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #495057;
+}
+
+/* Activity List */
+.activity-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.activity-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 0.5rem;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.activity-item:hover {
+    background: #e9ecef;
+    transform: translateX(5px);
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    margin-right: 1rem;
+}
+
+.appointment .activity-icon { background: #28a745; }
+.immunisation .activity-icon { background: #17a2b8; }
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-title {
+    font-weight: bold;
+    color: #495057;
+    margin-bottom: 0.25rem;
+}
+
+.activity-subtitle {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-bottom: 0.25rem;
+}
+
+.activity-time {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+/* Floating Chatbot */
+.floating-chatbot {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 1000;
+}
+
+.chatbot-icon {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 5px 25px rgba(0, 123, 255, 0.5);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.chatbot-icon:hover {
+    transform: scale(1.1);
+    box-shadow: 0 8px 30px rgba(0, 123, 255, 0.7);
+}
+
+.chatbot-pulse {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: inherit;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+}
+
+/* Tip Cards */
+.tip-card {
+    text-align: center;
+    padding: 1.5rem;
+    border-radius: 15px;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.tip-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.tip-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    margin: 0 auto 1rem;
+}
+
+/* Empty States */
+.empty-state {
+    padding: 2rem 1rem;
+}
+
+.empty-state i {
+    opacity: 0.5;
+}
+
+/* Welcome Section */
+.welcome-section {
+    padding: 2rem 0;
+}
+
+.current-time {
+    font-size: 0.9rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .vitals-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .floating-chatbot {
+        bottom: 20px;
+        right: 20px;
+    }
+    
+    .chatbot-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.2rem;
+    }
+    
+    .card-stat {
+        font-size: 2rem;
+    }
+}
+</style>
 {% endblock %}

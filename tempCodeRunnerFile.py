@@ -8,13 +8,32 @@ from sklearn.ensemble import RandomForestClassifier
 import joblib
 import os
 import math
+from dotenv import load_dotenv
+import csv
+from io import StringIO
+import base64
+from io import BytesIO
+from PIL import Image
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'b00232f07c4572c4e0bc67b2a42bf661'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///health_tracker.db'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'fallback-secret-key')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///health_tracker.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+
+@app.context_processor
+def inject_datetime():
+    return {
+        'datetime': datetime,
+        'date': date,
+        'now': datetime.now,
+        'math': math
+    }
+
 
 # Models definition
 class User(db.Model):
@@ -30,6 +49,32 @@ class User(db.Model):
     predictions = db.relationship('DiseasePrediction', backref='user', lazy=True)
     chat_messages = db.relationship('ChatMessage', backref='user', lazy=True)
     doctor_appointments = db.relationship('DoctorAppointment', backref='user', lazy=True)
+    profile = db.relationship('UserProfile', backref='user', uselist=False, cascade='all, delete-orphan')
+
+class UserProfile(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    profile_picture = db.Column(db.Text)  # Store as base64
+    phone = db.Column(db.String(20))
+    address = db.Column(db.Text)
+    date_of_birth = db.Column(db.Date)
+    gender = db.Column(db.String(20))
+    emergency_contact = db.Column(db.String(100))
+    emergency_phone = db.Column(db.String(20))
+    blood_group = db.Column(db.String(10))
+    allergies = db.Column(db.Text)
+    medical_conditions = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+@property
+def age(self):
+        if self.date_of_birth:
+            today = date.today()
+            return today.year - self.date_of_birth.year - (
+                (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day)
+            )
+        return None
 
 class Vitals(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -174,7 +219,7 @@ class HealthChatbot:
             ],
             'fallback': [
                 "I'm not sure I understand. Could you rephrase your question about health?",
-                "I specialize in health-related questions. Could you ask about symptoms, vitals, or general health tips?",
+                "I specialize in health-related questions. Could you ask about symptoms, medications, or health tips?",
                 "I'm here to help with health concerns. Try asking about symptoms, medications, or health tips."
             ]
         }
@@ -217,6 +262,41 @@ class HealthChatbot:
 # Initialize chatbot
 health_bot = HealthChatbot()
 
+# Password strength validation
+def validate_password_strength(password):
+    """Validate password strength"""
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
+    
+    if not any(char.isdigit() for char in password):
+        return False, "Password must contain at least one digit"
+    
+    if not any(char.isupper() for char in password):
+        return False, "Password must contain at least one uppercase letter"
+    
+    if not any(char.islower() for char in password):
+        return False, "Password must contain at least one lowercase letter"
+    
+    return True, "Password is strong"
+
+# Helper function to convert Vitals object to dictionary
+def vital_to_dict(vital):
+    """Convert Vitals SQLAlchemy object to dictionary"""
+    return {
+        'id': vital.id,
+        'user_id': vital.user_id,
+        'date_recorded': vital.date_recorded.isoformat() if vital.date_recorded else None,
+        'height': vital.height,
+        'weight': vital.weight,
+        'bmi': vital.bmi,
+        'bp_systolic': vital.bp_systolic,
+        'bp_diastolic': vital.bp_diastolic,
+        'heart_rate': vital.heart_rate,
+        'glucose': vital.glucose,
+        'temperature': vital.temperature,
+        'oxygen_saturation': vital.oxygen_saturation
+    }
+
 # Routes
 @app.route('/')
 def index():
@@ -225,15 +305,27 @@ def index():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
+        username = request.form['username'].strip()
+        email = request.form['email'].strip().lower()
         password = request.form['password']
+        
+        # Validate password strength
+        is_strong, message = validate_password_strength(password)
+        if not is_strong:
+            flash(message, 'danger')
+            return redirect(url_for('register'))
         
         # Check if user already exists
         existing_user = User.query.filter_by(email=email).first()
         if existing_user:
             flash('Email already registered. Please login.', 'danger')
             return redirect(url_for('login'))
+        
+        # Check username availability
+        existing_username = User.query.filter_by(username=username).first()
+        if existing_username:
+            flash('Username already taken. Please choose another.', 'danger')
+            return redirect(url_for('register'))
         
         # Create new user
         new_user = User(
@@ -253,7 +345,7 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form['email']
+        email = request.form['email'].strip().lower()
         password = request.form['password']
         
         user = User.query.filter_by(email=email).first()
@@ -311,43 +403,73 @@ def vitals():
     user_id = session['user_id']
     
     if request.method == 'POST':
-        # Get form data
-        height = float(request.form['height'])
-        weight = float(request.form['weight'])
-        bp_systolic = int(request.form['bp_systolic'])
-        bp_diastolic = int(request.form['bp_diastolic'])
-        heart_rate = int(request.form['heart_rate'])
-        glucose = float(request.form['glucose'])
-        temperature = float(request.form['temperature'])
-        oxygen_saturation = int(request.form['oxygen_saturation'])
-        
-        # Calculate BMI
-        bmi = weight / ((height/100) ** 2)
-        
-        # Create new vitals record
-        new_vitals = Vitals(
-            user_id=user_id,
-            height=height,
-            weight=weight,
-            bmi=bmi,
-            bp_systolic=bp_systolic,
-            bp_diastolic=bp_diastolic,
-            heart_rate=heart_rate,
-            glucose=glucose,
-            temperature=temperature,
-            oxygen_saturation=oxygen_saturation
-        )
-        
-        db.session.add(new_vitals)
-        db.session.commit()
-        
-        flash('Vitals recorded successfully!', 'success')
-        return redirect(url_for('vitals'))
+        try:
+            # Get form data with validation
+            height = float(request.form.get('height', 0))
+            weight = float(request.form.get('weight', 0))
+            bp_systolic = int(request.form.get('bp_systolic', 0))
+            bp_diastolic = int(request.form.get('bp_diastolic', 0))
+            heart_rate = int(request.form.get('heart_rate', 0))
+            glucose = float(request.form.get('glucose', 0))
+            temperature = float(request.form.get('temperature', 0))
+            oxygen_saturation = int(request.form.get('oxygen_saturation', 0))
+            
+            # Validate input ranges
+            if not (100 <= height <= 250):  # cm
+                flash('Please enter a valid height (100-250 cm)', 'danger')
+                return redirect(url_for('vitals'))
+            
+            if not (30 <= weight <= 300):  # kg
+                flash('Please enter a valid weight (30-300 kg)', 'danger')
+                return redirect(url_for('vitals'))
+            
+            if not (60 <= bp_systolic <= 250):
+                flash('Please enter valid systolic blood pressure (60-250 mmHg)', 'danger')
+                return redirect(url_for('vitals'))
+            
+            if not (40 <= bp_diastolic <= 150):
+                flash('Please enter valid diastolic blood pressure (40-150 mmHg)', 'danger')
+                return redirect(url_for('vitals'))
+            
+            # Calculate BMI
+            bmi = weight / ((height/100) ** 2)
+            
+            # Create new vitals record
+            new_vitals = Vitals(
+                user_id=user_id,
+                height=height,
+                weight=weight,
+                bmi=round(bmi, 2),
+                bp_systolic=bp_systolic,
+                bp_diastolic=bp_diastolic,
+                heart_rate=heart_rate,
+                glucose=glucose,
+                temperature=temperature,
+                oxygen_saturation=oxygen_saturation
+            )
+            
+            db.session.add(new_vitals)
+            db.session.commit()
+            
+            flash('Vitals recorded successfully!', 'success')
+            return redirect(url_for('vitals'))
+            
+        except ValueError as e:
+            flash('Please enter valid numeric values for all fields.', 'danger')
+            return redirect(url_for('vitals'))
+        except Exception as e:
+            flash('An error occurred while saving vitals.', 'danger')
+            return redirect(url_for('vitals'))
     
     # Get user's vitals history
     vitals_history = Vitals.query.filter_by(user_id=user_id).order_by(Vitals.date_recorded.desc()).all()
     
-    return render_template('vitals.html', vitals_history=vitals_history)
+    # Convert to list of dictionaries for JSON serialization
+    vitals_history_dict = [vital_to_dict(vital) for vital in vitals_history]
+    
+    return render_template('vitals.html', 
+                         vitals_history=vitals_history,
+                         vitals_history_json=vitals_history_dict)
 
 @app.route('/immunisation', methods=['GET', 'POST'])
 def immunisation():
@@ -357,29 +479,46 @@ def immunisation():
     user_id = session['user_id']
     
     if request.method == 'POST':
-        vaccine_name = request.form['vaccine_name']
-        date_str = request.form['date']
-        next_due_date_str = request.form.get('next_due_date')
-        notes = request.form.get('notes', '')
-        
-        # Convert date strings to date objects
-        vaccine_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        next_due_date = datetime.strptime(next_due_date_str, '%Y-%m-%d').date() if next_due_date_str else None
-        
-        # Create new immunisation record
-        new_immunisation = Immunisation(
-            user_id=user_id,
-            vaccine_name=vaccine_name,
-            date=vaccine_date,
-            next_due_date=next_due_date,
-            notes=notes
-        )
-        
-        db.session.add(new_immunisation)
-        db.session.commit()
-        
-        flash('Immunisation record added successfully!', 'success')
-        return redirect(url_for('immunisation'))
+        try:
+            vaccine_name = request.form['vaccine_name'].strip()
+            date_str = request.form['date']
+            next_due_date_str = request.form.get('next_due_date')
+            notes = request.form.get('notes', '')
+            
+            if not vaccine_name:
+                flash('Please enter vaccine name.', 'danger')
+                return redirect(url_for('immunisation'))
+            
+            # Convert date strings to date objects
+            vaccine_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            
+            if vaccine_date > date.today():
+                flash('Vaccination date cannot be in the future.', 'danger')
+                return redirect(url_for('immunisation'))
+            
+            next_due_date = datetime.strptime(next_due_date_str, '%Y-%m-%d').date() if next_due_date_str else None
+            
+            # Create new immunisation record
+            new_immunisation = Immunisation(
+                user_id=user_id,
+                vaccine_name=vaccine_name,
+                date=vaccine_date,
+                next_due_date=next_due_date,
+                notes=notes
+            )
+            
+            db.session.add(new_immunisation)
+            db.session.commit()
+            
+            flash('Immunisation record added successfully!', 'success')
+            return redirect(url_for('immunisation'))
+            
+        except ValueError:
+            flash('Invalid date format. Please use YYYY-MM-DD format.', 'danger')
+            return redirect(url_for('immunisation'))
+        except Exception as e:
+            flash('An error occurred while saving immunisation record.', 'danger')
+            return redirect(url_for('immunisation'))
     
     # Get user's immunisation records
     immunisation_records = Immunisation.query.filter_by(user_id=user_id).order_by(Immunisation.date.desc()).all()
@@ -409,52 +548,66 @@ def prediction():
         return redirect(url_for('login'))
     
     user_id = session['user_id']
-    user = User.query.get(user_id)
     
     if request.method == 'POST':
-        # Get form data
-        age = int(request.form['age'])
-        bmi = float(request.form['bmi'])
-        bp_systolic = int(request.form['bp_systolic'])
-        bp_diastolic = int(request.form['bp_diastolic'])
-        glucose = float(request.form['glucose'])
-        
-        # Make prediction
-        features = np.array([[age, bmi, bp_systolic, bp_diastolic, glucose]])
-        prediction = prediction_model.predict(features)[0]
-        probability = prediction_model.predict_proba(features)[0]
-        
-        # Risk levels
-        risk_levels = ['Low Risk', 'Medium Risk', 'High Risk']
-        risk_description = [
-            "You have a low risk of developing lifestyle diseases. Maintain your healthy habits!",
-            "You have a medium risk of developing lifestyle diseases. Consider making some lifestyle improvements.",
-            "You have a high risk of developing lifestyle diseases. Please consult with a healthcare professional."
-        ]
-        
-        risk_level = risk_levels[prediction]
-        risk_desc = risk_description[prediction]
-        
-        # Store prediction in database
-        new_prediction = DiseasePrediction(
-            user_id=user_id,
-            age=age,
-            bmi=bmi,
-            bp_systolic=bp_systolic,
-            bp_diastolic=bp_diastolic,
-            glucose=glucose,
-            risk_level=risk_level,
-            risk_probability=max(probability) * 100
-        )
-        
-        db.session.add(new_prediction)
-        db.session.commit()
-        
-        return render_template('prediction.html', 
-                              prediction=risk_level, 
-                              description=risk_desc,
-                              probability=max(probability) * 100,
-                              show_result=True)
+        try:
+            # Get form data with validation
+            age = int(request.form.get('age', 0))
+            bmi = float(request.form.get('bmi', 0))
+            bp_systolic = int(request.form.get('bp_systolic', 0))
+            bp_diastolic = int(request.form.get('bp_diastolic', 0))
+            glucose = float(request.form.get('glucose', 0))
+            
+            # Validate inputs
+            if not (1 <= age <= 120):
+                flash('Please enter a valid age (1-120 years)', 'danger')
+                return redirect(url_for('prediction'))
+            
+            if not (10 <= bmi <= 50):
+                flash('Please enter a valid BMI (10-50)', 'danger')
+                return redirect(url_for('prediction'))
+            
+            # Make prediction
+            features = np.array([[age, bmi, bp_systolic, bp_diastolic, glucose]])
+            prediction = prediction_model.predict(features)[0]
+            probability = prediction_model.predict_proba(features)[0]
+            
+            # Risk levels
+            risk_levels = ['Low Risk', 'Medium Risk', 'High Risk']
+            risk_description = [
+                "You have a low risk of developing lifestyle diseases. Maintain your healthy habits!",
+                "You have a medium risk of developing lifestyle diseases. Consider making some lifestyle improvements.",
+                "You have a high risk of developing lifestyle diseases. Please consult with a healthcare professional."
+            ]
+            
+            risk_level = risk_levels[prediction]
+            risk_desc = risk_description[prediction]
+            risk_prob = round(max(probability) * 100, 2)
+            
+            # Store prediction in database
+            new_prediction = DiseasePrediction(
+                user_id=user_id,
+                age=age,
+                bmi=bmi,
+                bp_systolic=bp_systolic,
+                bp_diastolic=bp_diastolic,
+                glucose=glucose,
+                risk_level=risk_level,
+                risk_probability=risk_prob
+            )
+            
+            db.session.add(new_prediction)
+            db.session.commit()
+            
+            return render_template('prediction.html', 
+                                  prediction=risk_level, 
+                                  description=risk_desc,
+                                  probability=risk_prob,
+                                  show_result=True)
+            
+        except Exception as e:
+            flash('An error occurred during prediction. Please check your inputs.', 'danger')
+            return redirect(url_for('prediction'))
     
     # Get latest vitals for pre-filling the form
     latest_vitals = Vitals.query.filter_by(user_id=user_id).order_by(Vitals.date_recorded.desc()).first()
@@ -485,28 +638,46 @@ def book_appointment():
     user_id = session['user_id']
     
     if request.method == 'POST':
-        doctor_name = request.form['doctor_name']
-        specialization = request.form['specialization']
-        appointment_date = request.form['appointment_date']
-        symptoms = request.form['symptoms']
-        
-        # Convert date string to datetime
-        appointment_datetime = datetime.strptime(appointment_date, '%Y-%m-%dT%H:%M')
-        
-        # Create new appointment
-        new_appointment = DoctorAppointment(
-            user_id=user_id,
-            doctor_name=doctor_name,
-            specialization=specialization,
-            appointment_date=appointment_datetime,
-            symptoms=symptoms
-        )
-        
-        db.session.add(new_appointment)
-        db.session.commit()
-        
-        flash('Appointment booked successfully!', 'success')
-        return redirect(url_for('appointments'))
+        try:
+            doctor_name = request.form.get('doctor_name', '').strip()
+            specialization = request.form.get('specialization', '').strip()
+            appointment_date = request.form.get('appointment_date', '').strip()
+            symptoms = request.form.get('symptoms', '').strip()
+            
+            # Validate required fields
+            if not all([doctor_name, specialization, appointment_date]):
+                flash('Please fill all required fields.', 'danger')
+                return redirect(url_for('book_appointment'))
+            
+            # Convert date string to datetime
+            appointment_datetime = datetime.strptime(appointment_date, '%Y-%m-%dT%H:%M')
+            
+            # Check if appointment is in the future
+            if appointment_datetime <= datetime.now():
+                flash('Please select a future date and time for appointment.', 'danger')
+                return redirect(url_for('book_appointment'))
+            
+            # Create new appointment
+            new_appointment = DoctorAppointment(
+                user_id=user_id,
+                doctor_name=doctor_name,
+                specialization=specialization,
+                appointment_date=appointment_datetime,
+                symptoms=symptoms
+            )
+            
+            db.session.add(new_appointment)
+            db.session.commit()
+            
+            flash('Appointment booked successfully!', 'success')
+            return redirect(url_for('appointments'))
+            
+        except ValueError:
+            flash('Invalid date format. Please use the date picker.', 'danger')
+            return redirect(url_for('book_appointment'))
+        except Exception as e:
+            flash('An error occurred while booking appointment.', 'danger')
+            return redirect(url_for('book_appointment'))
     
     doctor_name = request.args.get('doctor', '')
     specialization = request.args.get('specialization', '')
@@ -525,7 +696,7 @@ def appointments():
     user_id = session['user_id']
     appointments = DoctorAppointment.query.filter_by(user_id=user_id).order_by(DoctorAppointment.appointment_date.desc()).all()
     
-    return render_template('appointments.html', appointments=appointments,now=datetime.now())
+    return render_template('appointments.html', appointments=appointments, now=datetime.now())
 
 @app.route('/emergency')
 def emergency():
@@ -670,6 +841,310 @@ def vitals_chart_data():
         'heart_rates': heart_rates,
         'glucose_levels': glucose_levels
     })
+
+@app.route('/send_email_report', methods=['POST'])
+def send_email_report():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    # Implement actual email sending with SMTP
+    # For now, return a placeholder response
+    flash('Email report feature coming soon!', 'info')
+    return jsonify({'success': True, 'message': 'Report will be sent via email'})
+
+# Export Routes
+@app.route('/api/vitals/<int:vital_id>')
+def get_vital_details(vital_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
+    vital = Vitals.query.filter_by(id=vital_id, user_id=user_id).first()
+    
+    if not vital:
+        return jsonify({'error': 'Vital record not found'}), 404
+    
+    return jsonify(vital_to_dict(vital))
+
+@app.route('/api/vitals/clear', methods=['POST'])
+def clear_vitals_history():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
+    
+    try:
+        # Delete all vitals for the user
+        Vitals.query.filter_by(user_id=user_id).delete()
+        db.session.commit()
+        
+        flash('Vitals history cleared successfully!', 'success')
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to clear history'}), 500
+
+@app.route('/export/vitals/pdf')
+def export_vitals_pdf():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user_id = session['user_id']
+    vitals_history = Vitals.query.filter_by(user_id=user_id).order_by(Vitals.date_recorded.desc()).all()
+    
+    # For now, we'll return a simple HTML page that users can print as PDF
+    from flask import render_template_string
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Health Vitals Report</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 20px; }}
+            .header {{ text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }}
+            .table {{ width: 100%; border-collapse: collapse; }}
+            .table th, .table td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+            .table th {{ background-color: #f2f2f2; }}
+            .summary {{ margin: 20px 0; padding: 15px; background-color: #f8f9fa; border-radius: 5px; }}
+            .footer {{ margin-top: 30px; text-align: center; font-size: 12px; color: #666; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Health Vitals Report</h1>
+            <p>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p>User: {session.get('username', 'Unknown')}</p>
+        </div>
+        
+        <div class="summary">
+            <h3>Report Summary</h3>
+            <p>Total Records: {len(vitals_history)}</p>
+            <p>Date Range: {vitals_history[-1].date_recorded.strftime('%Y-%m-%d') if vitals_history else 'N/A'} 
+               to {vitals_history[0].date_recorded.strftime('%Y-%m-%d') if vitals_history else 'N/A'}</p>
+        </div>
+        
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Height (cm)</th>
+                    <th>Weight (kg)</th>
+                    <th>BMI</th>
+                    <th>Blood Pressure</th>
+                    <th>Heart Rate</th>
+                    <th>Glucose</th>
+                    <th>Temp (°C)</th>
+                    <th>Oxygen (%)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {"".join([f"""
+                <tr>
+                    <td>{vital.date_recorded.strftime('%Y-%m-%d')}</td>
+                    <td>{vital.height}</td>
+                    <td>{vital.weight}</td>
+                    <td>{vital.bmi:.1f}</td>
+                    <td>{vital.bp_systolic}/{vital.bp_diastolic}</td>
+                    <td>{vital.heart_rate}</td>
+                    <td>{vital.glucose}</td>
+                    <td>{vital.temperature}</td>
+                    <td>{vital.oxygen_saturation}</td>
+                </tr>
+                """ for vital in vitals_history])}
+            </tbody>
+        </table>
+        
+        <div class="footer">
+            <p>This report was generated by Health World - Your Personal Health Tracker</p>
+            <p>For medical advice, please consult with healthcare professionals.</p>
+        </div>
+        
+        <script>
+            window.onload = function() {{
+                window.print();
+            }};
+        </script>
+    </body>
+    </html>
+    """
+    
+    return render_template_string(html_content)
+
+@app.route('/api/vitals/export/<format_type>')
+def export_vitals_data(format_type):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
+    vitals_history = Vitals.query.filter_by(user_id=user_id).order_by(Vitals.date_recorded.desc()).all()
+    
+    # Convert to list of dictionaries
+    vitals_data = [vital_to_dict(vital) for vital in vitals_history]
+    
+    if format_type == 'json':
+        return jsonify(vitals_data)
+    elif format_type == 'csv':
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow(['Date', 'Height (cm)', 'Weight (kg)', 'BMI', 'Systolic BP', 'Diastolic BP', 
+                        'Heart Rate (bpm)', 'Glucose (mg/dL)', 'Temperature (°C)', 'Oxygen Saturation (%)'])
+        
+        # Write data
+        for vital in vitals_data:
+            writer.writerow([
+                vital['date_recorded'][:10],  # Just the date part
+                vital['height'],
+                vital['weight'],
+                vital['bmi'],
+                vital['bp_systolic'],
+                vital['bp_diastolic'],
+                vital['heart_rate'],
+                vital['glucose'],
+                vital['temperature'],
+                vital['oxygen_saturation']
+            ])
+        
+        response = app.response_class(
+            response=output.getvalue(),
+            status=200,
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment; filename=health_vitals_{datetime.now().strftime("%Y%m%d")}.csv'}
+        )
+        return response
+    
+    return jsonify({'error': 'Invalid format'}), 400
+
+# Profile Management Routes
+@app.route('/profile', methods=['GET', 'POST'])
+def profile():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user_id = session['user_id']
+    user = User.query.get(user_id)
+    profile = UserProfile.query.filter_by(user_id=user_id).first()
+    
+    if request.method == 'POST':
+        try:
+            # Get form data
+            phone = request.form.get('phone', '').strip()
+            address = request.form.get('address', '').strip()
+            date_of_birth_str = request.form.get('date_of_birth')
+            gender = request.form.get('gender', '').strip()
+            emergency_contact = request.form.get('emergency_contact', '').strip()
+            emergency_phone = request.form.get('emergency_phone', '').strip()
+            blood_group = request.form.get('blood_group', '').strip()
+            allergies = request.form.get('allergies', '').strip()
+            medical_conditions = request.form.get('medical_conditions', '').strip()
+            
+            # Handle profile picture
+            profile_picture = None
+            if 'profile_picture' in request.files:
+                file = request.files['profile_picture']
+                if file and file.filename:
+                    # Validate file type
+                    if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                        flash('Please upload a valid image file (PNG, JPG, JPEG, GIF)', 'danger')
+                        return redirect(url_for('profile'))
+                    
+                    # Validate file size (max 5MB)
+                    file.seek(0, os.SEEK_END)
+                    file_length = file.tell()
+                    file.seek(0)
+                    if file_length > 5 * 1024 * 1024:
+                        flash('Profile picture must be less than 5MB', 'danger')
+                        return redirect(url_for('profile'))
+                    
+                    # Process image
+                    try:
+                        image = Image.open(file)
+                        # Resize image to max 500x500
+                        image.thumbnail((500, 500), Image.Resampling.LANCZOS)
+                        
+                        # Convert to base64
+                        buffered = BytesIO()
+                        image.save(buffered, format="PNG")
+                        profile_picture = base64.b64encode(buffered.getvalue()).decode('utf-8')
+                    except Exception as e:
+                        flash('Error processing image. Please try another image.', 'danger')
+                        return redirect(url_for('profile'))
+            
+            # Convert date string to date object
+            date_of_birth = None
+            if date_of_birth_str:
+                date_of_birth = datetime.strptime(date_of_birth_str, '%Y-%m-%d').date()
+            
+            if profile:
+                # Update existing profile
+                profile.phone = phone
+                profile.address = address
+                profile.date_of_birth = date_of_birth
+                profile.gender = gender
+                profile.emergency_contact = emergency_contact
+                profile.emergency_phone = emergency_phone
+                profile.blood_group = blood_group
+                profile.allergies = allergies
+                profile.medical_conditions = medical_conditions
+                profile.updated_at = datetime.utcnow()
+                
+                if profile_picture:
+                    profile.profile_picture = profile_picture
+            else:
+                # Create new profile
+                profile = UserProfile(
+                    user_id=user_id,
+                    phone=phone,
+                    address=address,
+                    date_of_birth=date_of_birth,
+                    gender=gender,
+                    emergency_contact=emergency_contact,
+                    emergency_phone=emergency_phone,
+                    blood_group=blood_group,
+                    allergies=allergies,
+                    medical_conditions=medical_conditions,
+                    profile_picture=profile_picture
+                )
+                db.session.add(profile)
+            
+            db.session.commit()
+            flash('Profile updated successfully!', 'success')
+            return redirect(url_for('profile'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash('An error occurred while updating profile.', 'danger')
+            return redirect(url_for('profile'))
+    
+    return render_template('profile.html', user=user, profile=profile)
+
+@app.route('/profile/remove_picture', methods=['POST'])
+def remove_profile_picture():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
+    profile = UserProfile.query.filter_by(user_id=user_id).first()
+    
+    if profile:
+        profile.profile_picture = None
+        db.session.commit()
+        flash('Profile picture removed successfully!', 'success')
+    
+    return redirect(url_for('profile'))
+
+# Error handlers
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return render_template('500.html'), 500
 
 if __name__ == '__main__':
     with app.app_context():

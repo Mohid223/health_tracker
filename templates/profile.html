@@ -1,0 +1,666 @@
+ {% extends "base.html" %}
+
+{% block title %}My Profile - Health World{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header -->
+     
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    <i class="fas fa-{% if category == 'success' %}check-circle{% else %}exclamation-triangle{% endif %} me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="row g-4">
+        <!-- Left Sidebar - Profile Summary -->
+        <div class="col-lg-4">
+            <!-- Profile Card -->
+            <div class="card border-primary shadow-sm h-100">
+                <div class="card-header bg-primary text-white py-3">
+                    <h5 class="mb-0"><i class="fas fa-id-card me-2"></i>Profile Overview</h5>
+                </div>
+                <div class="card-body text-center">
+                    <!-- Profile Picture -->
+                    <div class="mb-4 position-relative">
+                        {% if profile and profile.profile_picture %}
+                            <img src="data:image/png;base64,{{ profile.profile_picture }}" 
+                                 alt="Profile Picture" 
+                                 class="rounded-circle border border-4 border-primary shadow"
+                                 style="width: 150px; height: 150px; object-fit: cover;">
+                        {% else %}
+                            <div class="rounded-circle border border-4 border-primary d-inline-flex align-items-center justify-content-center bg-light shadow"
+                                 style="width: 150px; height: 150px;">
+                                <i class="fas fa-user fa-4x text-muted"></i>
+                            </div>
+                        {% endif %}
+                        <button class="btn btn-sm btn-primary position-absolute bottom-0 end-0 rounded-circle" 
+                                style="width: 40px; height: 40px;"
+                                onclick="document.getElementById('profile_picture').click()">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- User Info -->
+                    <h4 class="text-primary mb-1">{{ user.username }}</h4>
+                    <p class="text-muted mb-3">{{ user.email }}</p>
+                    
+                    <!-- Quick Stats -->
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <div class="border-end">
+                                <h6 class="text-primary mb-1" id="vitalsCount">0</h6>
+                                <small class="text-muted">Vitals</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border-end">
+                                <h6 class="text-success mb-1" id="appointmentsCount">0</h6>
+                                <small class="text-muted">Appointments</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <h6 class="text-info mb-1" id="immunizationsCount">0</h6>
+                            <small class="text-muted">Vaccines</small>
+                        </div>
+                    </div>
+
+                    <!-- Profile Completion -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <small class="text-muted">Profile Completion</small>
+                            <small class="text-primary" id="completionPercent">0%</small>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-primary" id="completionBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="toggleEditMode()" id="editToggleBtn">
+                            <i class="fas fa-edit me-2"></i>Edit Profile
+                        </button>
+                        {% if profile and profile.profile_picture %}
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeProfilePicture()">
+                            <i class="fas fa-trash me-2"></i>Remove Picture
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Medical Summary Card -->
+            {% if profile and (profile.blood_group or profile.allergies or profile.medical_conditions) %}
+            <div class="card border-warning mt-4 shadow-sm">
+                <div class="card-header bg-warning text-dark py-3">
+                    <h6 class="mb-0"><i class="fas fa-file-medical me-2"></i>Medical Summary</h6>
+                </div>
+                <div class="card-body">
+                    {% if profile.blood_group %}
+                    <div class="mb-2">
+                        <strong>Blood Group:</strong>
+                        <span class="badge bg-danger ms-2">{{ profile.blood_group }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if profile.allergies %}
+                    <div class="mb-2">
+                        <strong>Allergies:</strong>
+                        <div class="mt-1">
+                            {% for allergy in profile.allergies.split(',') %}
+                                <span class="badge bg-info me-1 mb-1">{{ allergy.strip() }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if profile.medical_conditions %}
+                    <div class="mb-2">
+                        <strong>Conditions:</strong>
+                        <div class="mt-1">
+                            {% for condition in profile.medical_conditions.split(',') %}
+                                <span class="badge bg-warning text-dark me-1 mb-1">{{ condition.strip() }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Content - Profile Details -->
+        <div class="col-lg-8">
+            <!-- Personal Information Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 text-dark"><i class="fas fa-user-info me-2"></i>Personal Information</h5>
+                        <span class="badge bg-primary" id="infoStatus">View Mode</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('profile') }}" id="profileForm" enctype="multipart/form-data" style="display: none;">
+                        <!-- Hidden file input for profile picture -->
+                        <input type="file" class="d-none" id="profile_picture" name="profile_picture" accept=".jpg,.jpeg,.png,.gif" onchange="handleProfilePictureChange(this)">
+                        
+                        <div class="row g-3">
+                            <!-- Basic Info -->
+                            <div class="col-md-6">
+                                <label class="form-label">Username</label>
+                                <input type="text" class="form-control" value="{{ user.username }}" readonly>
+                                <div class="form-text">Username cannot be changed</div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" value="{{ user.email }}" readonly>
+                                <div class="form-text">Email cannot be changed</div>
+                            </div>
+
+                            <!-- Contact Info -->
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label">Phone Number *</label>
+                                <input type="tel" class="form-control" id="phone" name="phone" 
+                                       value="{{ profile.phone if profile }}" 
+                                       placeholder="+1 (555) 123-4567" required>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="date_of_birth" class="form-label">Date of Birth</label>
+                                <input type="date" class="form-control" id="date_of_birth" name="date_of_birth"
+                                       value="{{ profile.date_of_birth if profile and profile.date_of_birth }}">
+                                <div class="form-text" id="ageDisplay"></div>
+                            </div>
+
+                            <div class="col-12">
+                                <label for="address" class="form-label">Address</label>
+                                <textarea class="form-control" id="address" name="address" rows="2" 
+                                          placeholder="Enter your full address">{{ profile.address if profile }}</textarea>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="gender" class="form-label">Gender</label>
+                                <select class="form-select" id="gender" name="gender">
+                                    <option value="">Select Gender</option>
+                                    <option value="Male" {{ 'selected' if profile and profile.gender == 'Male' }}>Male</option>
+                                    <option value="Female" {{ 'selected' if profile and profile.gender == 'Female' }}>Female</option>
+                                    <option value="Other" {{ 'selected' if profile and profile.gender == 'Other' }}>Other</option>
+                                    <option value="Prefer not to say" {{ 'selected' if profile and profile.gender == 'Prefer not to say' }}>Prefer not to say</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="blood_group" class="form-label">Blood Group</label>
+                                <select class="form-select" id="blood_group" name="blood_group">
+                                    <option value="">Select Blood Group</option>
+                                    <option value="A+" {{ 'selected' if profile and profile.blood_group == 'A+' }}>A+</option>
+                                    <option value="A-" {{ 'selected' if profile and profile.blood_group == 'A-' }}>A-</option>
+                                    <option value="B+" {{ 'selected' if profile and profile.blood_group == 'B+' }}>B+</option>
+                                    <option value="B-" {{ 'selected' if profile and profile.blood_group == 'B-' }}>B-</option>
+                                    <option value="AB+" {{ 'selected' if profile and profile.blood_group == 'AB+' }}>AB+</option>
+                                    <option value="AB-" {{ 'selected' if profile and profile.blood_group == 'AB-' }}>AB-</option>
+                                    <option value="O+" {{ 'selected' if profile and profile.blood_group == 'O+' }}>O+</option>
+                                    <option value="O-" {{ 'selected' if profile and profile.blood_group == 'O-' }}>O-</option>
+                                </select>
+                            </div>
+
+                            <!-- Emergency Contact -->
+                            <div class="col-md-6">
+                                <label for="emergency_contact" class="form-label">Emergency Contact Name</label>
+                                <input type="text" class="form-control" id="emergency_contact" name="emergency_contact"
+                                       value="{{ profile.emergency_contact if profile }}"
+                                       placeholder="Name of emergency contact">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="emergency_phone" class="form-label">Emergency Contact Phone</label>
+                                <input type="tel" class="form-control" id="emergency_phone" name="emergency_phone"
+                                       value="{{ profile.emergency_phone if profile }}"
+                                       placeholder="Emergency contact phone number">
+                            </div>
+
+                            <!-- Medical Information -->
+                            <div class="col-12">
+                                <label for="allergies" class="form-label">Allergies</label>
+                                <textarea class="form-control" id="allergies" name="allergies" rows="2"
+                                          placeholder="List any allergies (separate with commas)">{{ profile.allergies if profile }}</textarea>
+                                <div class="form-text">Example: Penicillin, Peanuts, Dust</div>
+                            </div>
+
+                            <div class="col-12">
+                                <label for="medical_conditions" class="form-label">Medical Conditions</label>
+                                <textarea class="form-control" id="medical_conditions" name="medical_conditions" rows="3"
+                                          placeholder="List any ongoing medical conditions">{{ profile.medical_conditions if profile }}</textarea>
+                                <div class="form-text">Example: Diabetes, Hypertension, Asthma</div>
+                            </div>
+
+                            <!-- Form Actions -->
+                            <div class="col-12">
+                                <div class="d-flex gap-2 justify-content-end border-top pt-3">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="toggleEditMode()">
+                                        <i class="fas fa-times me-2"></i>Cancel
+                                    </button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i>Save Changes
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Display Mode -->
+                    <div id="displayMode">
+                        <div class="row g-3">
+                            <!-- Personal Details -->
+                            <div class="col-md-6">
+                                <h6 class="text-primary mb-3"><i class="fas fa-user me-2"></i>Personal Details</h6>
+                                <div class="info-item mb-2">
+                                    <strong>Phone:</strong>
+                                    <span class="float-end">{{ profile.phone if profile and profile.phone else 'Not provided' }}</span>
+                                </div>
+                                <div class="info-item mb-2">
+                                    <strong>Date of Birth:</strong>
+                                    <span class="float-end">
+                                        {% if profile and profile.date_of_birth %}
+                                            {{ profile.date_of_birth.strftime('%B %d, %Y') }}
+                                            {% set today = now().date() %}
+                                            {% set age = today.year - profile.date_of_birth.year - ((today.month, today.day) < (profile.date_of_birth.month, profile.date_of_birth.day)) %}
+                                            <small class="text-muted">({{ age }} years)</small>
+                                        {% else %}
+                                            Not provided
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="info-item mb-2">
+                                    <strong>Gender:</strong>
+                                    <span class="float-end">{{ profile.gender if profile and profile.gender else 'Not provided' }}</span>
+                                </div>
+                                <div class="info-item mb-2">
+                                    <strong>Blood Group:</strong>
+                                    <span class="float-end">
+                                        {% if profile and profile.blood_group %}
+                                            <span class="badge bg-danger">{{ profile.blood_group }}</span>
+                                        {% else %}
+                                            Not provided
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Contact Details -->
+                            <div class="col-md-6">
+                                <h6 class="text-primary mb-3"><i class="fas fa-address-book me-2"></i>Contact Details</h6>
+                                <div class="info-item mb-2">
+                                    <strong>Address:</strong>
+                                    <div class="float-end text-end">
+                                        {{ profile.address if profile and profile.address else 'Not provided' }}
+                                    </div>
+                                </div>
+                                <div class="info-item mb-2">
+                                    <strong>Emergency Contact:</strong>
+                                    <span class="float-end">{{ profile.emergency_contact if profile and profile.emergency_contact else 'Not provided' }}</span>
+                                </div>
+                                <div class="info-item mb-2">
+                                    <strong>Emergency Phone:</strong>
+                                    <span class="float-end">{{ profile.emergency_phone if profile and profile.emergency_phone else 'Not provided' }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Medical Information -->
+                            {% if profile and (profile.allergies or profile.medical_conditions) %}
+                            <div class="col-12">
+                                <h6 class="text-primary mb-3"><i class="fas fa-file-medical me-2"></i>Medical Information</h6>
+                                {% if profile.allergies %}
+                                <div class="info-item mb-2">
+                                    <strong>Allergies:</strong>
+                                    <div class="float-end text-end">
+                                        {% for allergy in profile.allergies.split(',') %}
+                                            <span class="badge bg-info me-1 mb-1">{{ allergy.strip() }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                {% if profile.medical_conditions %}
+                                <div class="info-item mb-2">
+                                    <strong>Medical Conditions:</strong>
+                                    <div class="float-end text-end">
+                                        {% for condition in profile.medical_conditions.split(',') %}
+                                            <span class="badge bg-warning text-dark me-1 mb-1">{{ condition.strip() }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                            <!-- Last Updated -->
+                            {% if profile %}
+                            <div class="col-12">
+                                <div class="text-center text-muted small border-top pt-3">
+                                    <i class="fas fa-clock me-1"></i>
+                                    Last updated: {{ profile.updated_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+ 
+
+<!-- Profile Guide Modal -->
+<div class="modal fade" id="profileGuideModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-question-circle me-2"></i>Profile Guide</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="d-flex">
+                            <i class="fas fa-shield-alt text-primary fa-2x me-3"></i>
+                            <div>
+                                <h6>Privacy & Security</h6>
+                                <p class="small text-muted mb-0">Your health data is encrypted and only accessible to you and authorized healthcare providers.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex">
+                            <i class="fas fa-stethoscope text-success fa-2x me-3"></i>
+                            <div>
+                                <h6>Better Care</h6>
+                                <p class="small text-muted mb-0">Complete profiles help doctors provide better, personalized medical care.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex">
+                            <i class="fas fa-bolt text-warning fa-2x me-3"></i>
+                            <div>
+                                <h6>Quick Access</h6>
+                                <p class="small text-muted mb-0">Emergency information is readily available when you need it most.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex">
+                            <i class="fas fa-chart-line text-info fa-2x me-3"></i>
+                            <div>
+                                <h6>Health Insights</h6>
+                                <p class="small text-muted mb-0">Get personalized health recommendations based on your profile.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Global state
+let editMode = false;
+
+// Toggle between view and edit mode
+function toggleEditMode() {
+    editMode = !editMode;
+    const form = document.getElementById('profileForm');
+    const display = document.getElementById('displayMode');
+    const statusBadge = document.getElementById('infoStatus');
+    const editBtn = document.getElementById('editToggleBtn');
+    
+    if (editMode) {
+        form.style.display = 'block';
+        display.style.display = 'none';
+        statusBadge.textContent = 'Edit Mode';
+        statusBadge.className = 'badge bg-warning';
+        editBtn.innerHTML = '<i class="fas fa-eye me-2"></i>View Profile';
+        editBtn.classList.remove('btn-outline-primary');
+        editBtn.classList.add('btn-primary');
+    } else {
+        form.style.display = 'none';
+        display.style.display = 'block';
+        statusBadge.textContent = 'View Mode';
+        statusBadge.className = 'badge bg-primary';
+        editBtn.innerHTML = '<i class="fas fa-edit me-2"></i>Edit Profile';
+        editBtn.classList.remove('btn-primary');
+        editBtn.classList.add('btn-outline-primary');
+    }
+}
+
+// Handle profile picture change
+function handleProfilePictureChange(input) {
+    if (input.files && input.files[0]) {
+        // Auto-submit the form when a new picture is selected
+        document.getElementById('profileForm').submit();
+    }
+}
+
+// Remove profile picture
+function removeProfilePicture() {
+    if (confirm('Are you sure you want to remove your profile picture?')) {
+        fetch('{{ url_for("remove_profile_picture") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                showAlert('Error removing profile picture', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Error removing profile picture', 'danger');
+        });
+    }
+}
+
+// Calculate and display age
+function calculateAge() {
+    const dobInput = document.getElementById('date_of_birth');
+    const ageDisplay = document.getElementById('ageDisplay');
+    
+    if (dobInput && dobInput.value) {
+        const dob = new Date(dobInput.value);
+        const today = new Date();
+        let age = today.getFullYear() - dob.getFullYear();
+        const monthDiff = today.getMonth() - dob.getMonth();
+        
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+            age--;
+        }
+        
+        ageDisplay.textContent = `Age: ${age} years`;
+        ageDisplay.className = 'form-text text-success fw-bold';
+    } else {
+        ageDisplay.textContent = '';
+    }
+}
+
+// Calculate profile completion percentage
+function calculateProfileCompletion() {
+    const fields = [
+        'phone', 'date_of_birth', 'address', 'gender', 'blood_group',
+        'emergency_contact', 'emergency_phone', 'allergies', 'medical_conditions'
+    ];
+    
+    let completed = 0;
+    const profile = {{ profile_dict|tojson|safe if profile_dict else '{}' }};
+     
+    fields.forEach(field => {
+        if (profile[field] && String(profile[field]).trim().length > 0) {
+            completed++;
+        }
+    });
+    
+    const percentage = Math.round((completed / fields.length) * 100);
+    document.getElementById('completionPercent').textContent = percentage + '%';
+    document.getElementById('completionBar').style.width = percentage + '%';
+    
+    return percentage;
+}
+
+// Load user statistics
+function loadUserStats() {
+    // Simulate loading user data (replace with actual API calls)
+    setTimeout(() => {
+        const vitalsCount = Math.floor(Math.random() * 20) + 5;
+        const appointmentsCount = Math.floor(Math.random() * 10) + 1;
+        const immunizationsCount = Math.floor(Math.random() * 8) + 2;
+        
+        // Update sidebar counts
+        document.getElementById('vitalsCount').textContent = vitalsCount;
+        document.getElementById('appointmentsCount').textContent = appointmentsCount;
+        document.getElementById('immunizationsCount').textContent = immunizationsCount;
+        
+        // Update display cards
+        document.getElementById('displayVitalsCount').textContent = vitalsCount;
+        document.getElementById('displayAppointmentsCount').textContent = appointmentsCount;
+        document.getElementById('displayImmunizationsCount').textContent = immunizationsCount;
+    }, 1000);
+}
+
+// Show alert message
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.querySelector('.container.py-4').insertBefore(alertDiv, document.querySelector('.container.py-4').firstChild);
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Calculate age on date change
+    const dobInput = document.getElementById('date_of_birth');
+    if (dobInput) {
+        dobInput.addEventListener('change', calculateAge);
+        // Calculate age initially if date is set
+        if (dobInput.value) {
+            calculateAge();
+        }
+    }
+    
+    // Calculate profile completion
+    calculateProfileCompletion();
+    
+    // Load user statistics
+    loadUserStats();
+    
+    // Form submission handling
+    const form = document.getElementById('profileForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Saving...';
+                submitBtn.disabled = true;
+            }
+        });
+    }
+    
+    // Enhanced input validation
+    const inputs = document.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        input.addEventListener('blur', function() {
+            if (this.hasAttribute('required') && !this.value.trim()) {
+                this.classList.add('is-invalid');
+            } else {
+                this.classList.remove('is-invalid');
+                if (this.value.trim()) {
+                    this.classList.add('is-valid');
+                }
+            }
+        });
+    });
+});
+</script>
+
+<style>
+.info-item {
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.card {
+    transition: all 0.3s ease;
+    border: 1px solid #e0e0e0;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+}
+
+.progress {
+    border-radius: 10px;
+}
+
+.progress-bar {
+    border-radius: 10px;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.is-valid {
+    border-color: #198754 !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%23198754' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+.is-invalid {
+    border-color: #dc3545 !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath d='m5.8 3.6.4.4.4-.4'/%3e%3cpath d='M6 7v1'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.rounded-circle {
+    transition: all 0.3s ease;
+}
+
+.rounded-circle:hover {
+    transform: scale(1.05);
+}
+</style>
+{% endblock %}

@@ -1,114 +1,668 @@
- 
  {% extends "base.html" %}
 
-{% block title %}Vitals Tracker - Health World After COVID{% endblock %}
+{% block title %}Vitals Tracker - Health World{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="display-5">Vitals Tracker</h1>
-        <p class="lead">Monitor and record your health measurements</p>
-    </div>
-</div>
-
-<div class="row">
-    <!-- Vitals Form -->
-    <div class="col-md-6 mb-4">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Record New Vitals</h5>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('vitals') }}">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="height" class="form-label">Height (cm)</label>
-                            <input type="number" class="form-control" id="height" name="height" step="0.1" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="weight" class="form-label">Weight (kg)</label>
-                            <input type="number" class="form-control" id="weight" name="weight" step="0.1" required>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="bp_systolic" class="form-label">Blood Pressure (Systolic)</label>
-                            <input type="number" class="form-control" id="bp_systolic" name="bp_systolic" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="bp_diastolic" class="form-label">Blood Pressure (Diastolic)</label>
-                            <input type="number" class="form-control" id="bp_diastolic" name="bp_diastolic" required>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="heart_rate" class="form-label">Heart Rate (bpm)</label>
-                            <input type="number" class="form-control" id="heart_rate" name="heart_rate" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="glucose" class="form-label">Glucose (mg/dL)</label>
-                            <input type="number" class="form-control" id="glucose" name="glucose" step="0.1" required>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="temperature" class="form-label">Temperature (°C)</label>
-                            <input type="number" class="form-control" id="temperature" name="temperature" step="0.1" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="oxygen_saturation" class="form-label">Oxygen Saturation (%)</label>
-                            <input type="number" class="form-control" id="oxygen_saturation" name="oxygen_saturation" min="0" max="100" required>
-                        </div>
-                    </div>
-                    
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg">Save Vitals</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Vitals History -->
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header bg-secondary text-white">
-                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Vitals History</h5>
-            </div>
-            <div class="card-body">
-                {% if vitals_history %}
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Weight</th>
-                                <th>BMI</th>
-                                <th>BP</th>
-                                <th>HR</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for vital in vitals_history %}
-                            <tr>
-                                <td>{{ vital.date_recorded.strftime('%Y-%m-%d') }}</td>
-                                <td>{{ "%.1f"|format(vital.weight) }} kg</td>
-                                <td>{{ "%.1f"|format(vital.bmi) }}</td>
-                                <td>{{ vital.bp_systolic }}/{{ vital.bp_diastolic }}</td>
-                                <td>{{ vital.heart_rate }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+<div class="container py-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-2">Health Vitals Tracker</h2>
+                    <p class="text-muted lead">Monitor and manage your key health measurements</p>
                 </div>
-                {% else %}
-                <p class="text-muted text-center py-4">No vitals recorded yet. Start by recording your first measurement!</p>
-                {% endif %}
+                <div>
+                    <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#vitalsGuideModal">
+                        Measurement Guide
+                    </button>
+                    {% if vitals_history and vitals_history|length > 0 %}
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown">
+                            Export Data
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="exportVitalsData('csv', event)">Export as CSV</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="exportVitalsData('json', event)">Export as JSON</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="exportVitalsData('pdf', event)">Export as PDF</a></li>
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="row g-4">
+        <!-- Vitals Input Form -->
+        <div class="col-lg-6">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Record New Health Measurements</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('vitals') }}" id="vitalsForm">
+                        <div class="row g-3">
+                            <!-- Basic Measurements -->
+                            <div class="col-md-6">
+                                <label for="height" class="form-label">Height (cm)</label>
+                                <input type="number" class="form-control" id="height" name="height" 
+                                       step="0.1" min="100" max="250" required>
+                                <div class="form-text">Your current height (100-250 cm)</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="weight" class="form-label">Weight (kg)</label>
+                                <input type="number" class="form-control" id="weight" name="weight" 
+                                       step="0.1" min="30" max="300" required>
+                                <div class="form-text">Current body weight (30-300 kg)</div>
+                            </div>
+
+                            <!-- Blood Pressure -->
+                            <div class="col-md-6">
+                                <label for="bp_systolic" class="form-label">Systolic BP</label>
+                                <input type="number" class="form-control" id="bp_systolic" name="bp_systolic" 
+                                       min="60" max="250" required>
+                                <div class="form-text">Upper pressure reading (60-250 mmHg)</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="bp_diastolic" class="form-label">Diastolic BP</label>
+                                <input type="number" class="form-control" id="bp_diastolic" name="bp_diastolic" 
+                                       min="40" max="150" required>
+                                <div class="form-text">Lower pressure reading (40-150 mmHg)</div>
+                            </div>
+
+                            <!-- Heart and Glucose -->
+                            <div class="col-md-6">
+                                <label for="heart_rate" class="form-label">Heart Rate</label>
+                                <input type="number" class="form-control" id="heart_rate" name="heart_rate" 
+                                       min="30" max="200" required>
+                                <div class="form-text">Beats per minute (30-200 bpm)</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="glucose" class="form-label">Blood Glucose</label>
+                                <input type="number" class="form-control" id="glucose" name="glucose" 
+                                       step="0.1" min="50" max="500" required>
+                                <div class="form-text">mg/dL level (50-500 mg/dL)</div>
+                            </div>
+
+                            <!-- Temperature and Oxygen -->
+                            <div class="col-md-6">
+                                <label for="temperature" class="form-label">Body Temperature</label>
+                                <input type="number" class="form-control" id="temperature" name="temperature" 
+                                       step="0.1" min="35" max="42" required>
+                                <div class="form-text">Degrees Celsius (35-42°C)</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="oxygen_saturation" class="form-label">Oxygen Level</label>
+                                <input type="number" class="form-control" id="oxygen_saturation" name="oxygen_saturation" 
+                                       min="70" max="100" required>
+                                <div class="form-text">Percentage saturation (70-100%)</div>
+                            </div>
+
+                            <!-- Additional Notes -->
+                            <div class="col-12">
+                                <label for="notes" class="form-label">Additional Notes</label>
+                                <textarea class="form-control" id="notes" name="notes" rows="2" 
+                                          placeholder="Time of measurement, how you felt, or other observations..."></textarea>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                                        Save Health Measurements
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            {% if vitals_history and vitals_history|length > 0 %}
+            <div class="card mt-4 border-info">
+                <div class="card-body">
+                    <h6 class="text-info mb-3">Recent Health Summary</h6>
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="border rounded p-2">
+                                <div class="text-primary fw-bold">
+                                    {% if latest_vitals and latest_vitals.bmi %}
+                                        {{ "%.1f"|format(latest_vitals.bmi) }}
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted">BMI</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border rounded p-2">
+                                <div class="text-primary fw-bold">
+                                    {% if latest_vitals and latest_vitals.bp_systolic and latest_vitals.bp_diastolic %}
+                                        {{ latest_vitals.bp_systolic }}/{{ latest_vitals.bp_diastolic }}
+                                    {% else %}
+                                        --/--
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted">BP</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border rounded p-2">
+                                <div class="text-primary fw-bold">
+                                    {% if latest_vitals and latest_vitals.heart_rate %}
+                                        {{ latest_vitals.heart_rate }}
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted">HR</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Vitals History and Trends -->
+        <div class="col-lg-6">
+            <div class="card border-secondary h-100">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Measurement History & Trends</h5>
+                    {% if vitals_history and vitals_history|length > 0 %}
+                    <button class="btn btn-sm btn-light" onclick="refreshVitalsChart()">
+                        Refresh Chart
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if vitals_history and vitals_history|length > 0 %}
+                    <!-- Chart Container -->
+                    <div class="mb-4">
+                        <canvas id="vitalsChart" height="200"></canvas>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Weight</th>
+                                    <th>BMI</th>
+                                    <th>Blood Pressure</th>
+                                    <th>Heart Rate</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for vital in vitals_history %}
+                                <tr>
+                                    <td>
+                                        <small>{{ vital.date_recorded.strftime('%m/%d') }}</small>
+                                        <br>
+                                        <small class="text-muted">{{ vital.date_recorded.strftime('%Y') }}</small>
+                                    </td>
+                                    <td>
+                                        <strong>{{ "%.1f"|format(vital.weight) }}</strong>
+                                        <br>
+                                        <small class="text-muted">kg</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if vital.bmi < 18.5 %}bg-info
+                                            {% elif vital.bmi < 25 %}bg-success
+                                            {% elif vital.bmi < 30 %}bg-warning
+                                            {% else %}bg-danger{% endif %}">
+                                            {{ "%.1f"|format(vital.bmi) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="
+                                            {% if vital.bp_systolic > 140 or vital.bp_diastolic > 90 %}text-danger
+                                            {% elif vital.bp_systolic > 120 or vital.bp_diastolic > 80 %}text-warning
+                                            {% else %}text-success{% endif %}">
+                                            {{ vital.bp_systolic }}/{{ vital.bp_diastolic }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="
+                                            {% if vital.heart_rate > 100 or vital.heart_rate < 60 %}text-warning
+                                            {% else %}text-success{% endif %}">
+                                            {{ vital.heart_rate }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" 
+                                                onclick="viewVitalDetails({{ vital.id }})">
+                                            View
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Export Options -->
+                    <div class="mt-3 border-top pt-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">Showing {{ vitals_history|length }} records</small>
+                            <div>
+                                <button class="btn btn-sm btn-outline-success me-2" onclick="showExportOptions()">
+                                    <i class="fas fa-download"></i> Export Data
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="clearVitalsHistory()">
+                                    <i class="fas fa-trash"></i> Clear All
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <div class="text-muted mb-3" style="font-size: 3rem;">📊</div>
+                        <h5 class="text-muted">No Health Records Yet</h5>
+                        <p class="text-muted">Start by recording your first health measurements to track your progress.</p>
+                        <button class="btn btn-primary" onclick="document.getElementById('height').focus()">
+                            Record First Measurement
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Vitals Guide Modal -->
+<div class="modal fade" id="vitalsGuideModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Health Measurements Guide</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card border-0 bg-light h-100">
+                            <div class="card-body">
+                                <h6>Normal Ranges</h6>
+                                <ul class="small mb-0">
+                                    <li><strong>BMI:</strong> 18.5 - 24.9</li>
+                                    <li><strong>Blood Pressure:</strong> 120/80 mmHg or below</li>
+                                    <li><strong>Heart Rate:</strong> 60-100 bpm</li>
+                                    <li><strong>Blood Glucose:</strong> 70-100 mg/dL (fasting)</li>
+                                    <li><strong>Oxygen Saturation:</strong> 95-100%</li>
+                                    <li><strong>Temperature:</strong> 36.1-37.2°C</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-0 bg-light h-100">
+                            <div class="card-body">
+                                <h6>Measurement Tips</h6>
+                                <ul class="small mb-0">
+                                    <li>Measure at consistent times daily</li>
+                                    <li>Rest 5 minutes before BP check</li>
+                                    <li>Use proper equipment calibration</li>
+                                    <li>Record under similar conditions</li>
+                                    <li>Note any unusual symptoms</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export Options Modal -->
+<div class="modal fade" id="exportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Export Health Data</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Choose your preferred export format:</p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-success" onclick="exportVitalsData('csv', event)">
+                        <i class="fas fa-file-csv"></i> Export as CSV
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="exportVitalsData('json', event)">
+                        <i class="fas fa-file-code"></i> Export as JSON
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="exportVitalsData('pdf', event)">
+                        <i class="fas fa-file-pdf"></i> Export as PDF Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Include Chart.js for graphs -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+let vitalsChart = null;
+
+// Initialize the page
+document.addEventListener('DOMContentLoaded', function() {
+    // Load chart if there's data
+    if ({{ (vitals_history|length > 0)|lower }}) {
+        loadVitalsChart();
+    }
+    
+    // Add form validation
+    const form = document.getElementById('vitalsForm');
+    form.addEventListener('submit', function(e) {
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Saving...';
+        submitBtn.disabled = true;
+    });
+});
+
+function loadVitalsChart() {
+    fetch('/api/vitals/chart')
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('vitalsChart').getContext('2d');
+            
+            if (vitalsChart) {
+                vitalsChart.destroy();
+            }
+            
+            vitalsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.dates,
+                    datasets: [
+                        {
+                            label: 'Weight (kg)',
+                            data: data.weights,
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                            yAxisID: 'y',
+                            tension: 0.4
+                        },
+                        {
+                            label: 'BMI',
+                            data: data.bmis,
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                            yAxisID: 'y1',
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Weight (kg)'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'BMI'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error loading chart:', error);
+        });
+}
+
+function refreshVitalsChart() {
+    if (vitalsChart) {
+        loadVitalsChart();
+    }
+}
+
+function showExportOptions() {
+    const exportModal = new bootstrap.Modal(document.getElementById('exportModal'));
+    exportModal.show();
+}
+
+function exportVitalsData(format, event) {
+    // Get the button element from the event
+    const targetButton = event?.target || event?.currentTarget;
+    
+    // Close the modal
+    const exportModal = bootstrap.Modal.getInstance(document.getElementById('exportModal'));
+    if (exportModal) {
+        exportModal.hide();
+    }
+    
+    // Show loading state
+    let originalText, originalButton;
+    if (targetButton) {
+        originalText = targetButton.innerHTML;
+        targetButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Exporting...';
+        targetButton.disabled = true;
+        originalButton = targetButton;
+    }
+    
+    if (format === 'pdf') {
+        // For PDF, open in new window
+        window.open(`/export/vitals/pdf?format=pdf&_=${Date.now()}`, '_blank');
+        resetButton();
+        return;
+    }
+    
+    // For CSV and JSON, use the API endpoint
+    fetch(`/api/vitals/export/${format}`)
+        .then(response => {
+            if (format === 'csv') {
+                return response.blob();
+            } else {
+                return response.json();
+            }
+        })
+        .then(data => {
+            if (format === 'csv') {
+                // Download CSV file
+                const url = window.URL.createObjectURL(data);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `health_vitals_${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } else if (format === 'json') {
+                // Download JSON file
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `health_vitals_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }
+            resetButton();
+        })
+        .catch(error => {
+            console.error('Export error:', error);
+            alert('Error exporting data');
+            resetButton();
+        });
+    
+    function resetButton() {
+        setTimeout(() => {
+            if (originalButton && originalText) {
+                originalButton.innerHTML = originalText;
+                originalButton.disabled = false;
+            }
+        }, 1000);
+    }
+}
+
+function viewVitalDetails(vitalId) {
+    // Show a modal with detailed vital information
+    fetch(`/api/vitals/${vitalId}`)
+        .then(response => response.json())
+        .then(data => {
+            // Create and show a modal with the vital details
+            const modalHtml = `
+                <div class="modal fade" id="vitalDetailModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Vital Record Details</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-6"><strong>Date:</strong></div>
+                                    <div class="col-6">${new Date(data.date_recorded).toLocaleString()}</div>
+                                    
+                                    <div class="col-6"><strong>Height:</strong></div>
+                                    <div class="col-6">${data.height} cm</div>
+                                    
+                                    <div class="col-6"><strong>Weight:</strong></div>
+                                    <div class="col-6">${data.weight} kg</div>
+                                    
+                                    <div class="col-6"><strong>BMI:</strong></div>
+                                    <div class="col-6">${data.bmi}</div>
+                                    
+                                    <div class="col-6"><strong>Blood Pressure:</strong></div>
+                                    <div class="col-6">${data.bp_systolic}/${data.bp_diastolic} mmHg</div>
+                                    
+                                    <div class="col-6"><strong>Heart Rate:</strong></div>
+                                    <div class="col-6">${data.heart_rate} bpm</div>
+                                    
+                                    <div class="col-6"><strong>Glucose:</strong></div>
+                                    <div class="col-6">${data.glucose} mg/dL</div>
+                                    
+                                    <div class="col-6"><strong>Temperature:</strong></div>
+                                    <div class="col-6">${data.temperature} °C</div>
+                                    
+                                    <div class="col-6"><strong>Oxygen:</strong></div>
+                                    <div class="col-6">${data.oxygen_saturation}%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if any
+            const existingModal = document.getElementById('vitalDetailModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Add new modal to body and show it
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            const modal = new bootstrap.Modal(document.getElementById('vitalDetailModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error fetching vital details:', error);
+            alert('Error loading vital details');
+        });
+}
+
+function clearVitalsHistory() {
+    if (confirm('Are you sure you want to clear all your vitals history? This action cannot be undone.')) {
+        fetch('/api/vitals/clear', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error clearing history');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error clearing history');
+        });
+    }
+}
+</script>
+
+<style>
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.1);
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.card {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.btn-group .btn {
+    margin: 0 2px;
+}
+
+.export-option {
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.export-option:hover {
+    border-color: #007bff;
+    background-color: #f8f9fa;
+}
+</style>
 {% endblock %}

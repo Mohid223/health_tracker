@@ -4,10 +4,5 @@ Werkzeug==2.3.7
 scikit-learn
 numpy
 joblib
-<<<<<<< HEAD
 gunicorn 
-
-=======
-gunicorn
- 
->>>>>>> c0f2bed12262df176f091cd185b6a3db6e7467aa
+requirements.txt

@@ -1,149 +1,251 @@
-{% extends "base.html" %}
+ {% extends "base.html" %}
 
-{% block title %}Disease Prediction - Health World {% endblock %}
+{% block title %}Disease Prediction - Health World{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="display-5">Disease Prediction</h1>
-        <p class="lead">Assess your risk of developing lifestyle diseases</p>
+<div class="container py-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <h2 class="mb-3">Health Risk Assessment</h2>
+            <p class="lead text-muted">Evaluate your risk for lifestyle-related health conditions</p>
+        </div>
     </div>
-</div>
 
-{% if not show_result %}
-<!-- Prediction Form -->
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header bg-info text-white">
-                <h5 class="mb-0"><i class="fas fa-brain me-2"></i>Enter Your Health Information</h5>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('prediction') }}">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="age" class="form-label">Age</label>
-                            <input type="number" class="form-control" id="age" name="age" min="1" max="120" required 
-                                   value="{{ latest_vitals.user.age if latest_vitals and latest_vitals.user.age else '' }}">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="bmi" class="form-label">BMI</label>
-                            <input type="number" class="form-control" id="bmi" name="bmi" step="0.1" required 
-                                   value="{{ "%.1f"|format(latest_vitals.bmi) if latest_vitals else '' }}">
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="bp_systolic" class="form-label">Blood Pressure (Systolic)</label>
-                            <input type="number" class="form-control" id="bp_systolic" name="bp_systolic" required 
-                                   value="{{ latest_vitals.bp_systolic if latest_vitals else '' }}">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="bp_diastolic" class="form-label">Blood Pressure (Diastolic)</label>
-                            <input type="number" class="form-control" id="bp_diastolic" name="bp_diastolic" required 
-                                   value="{{ latest_vitals.bp_diastolic if latest_vitals else '' }}">
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="glucose" class="form-label">Glucose Level (mg/dL)</label>
-                        <input type="number" class="form-control" id="glucose" name="glucose" step="0.1" required 
-                               value="{{ "%.1f"|format(latest_vitals.glucose) if latest_vitals else '' }}">
-                    </div>
-                    
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-info btn-lg">Calculate Risk</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-        
-        <!-- Information Section -->
-        <div class="card mt-4">
-            <div class="card-body">
-                <h5>How It Works</h5>
-                <p>Our prediction model analyzes your health parameters using machine learning to estimate your risk of developing lifestyle diseases such as:</p>
-                <ul>
-                    <li>Diabetes</li>
-                    <li>Hypertension</li>
-                    <li>Cardiovascular diseases</li>
-                    <li>Metabolic syndrome</li>
-                </ul>
-                <p class="text-muted"><small>Note: This is a predictive tool and not a medical diagnosis. Always consult healthcare professionals for medical advice.</small></p>
-            </div>
-        </div>
-    </div>
-</div>
-{% else %}
-<!-- Prediction Result -->
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header 
-                {% if prediction == 'Low Risk' %}bg-success
-                {% elif prediction == 'Medium Risk' %}bg-warning
-                {% else %}bg-danger{% endif %} text-white">
-                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Prediction Result</h5>
-            </div>
-            <div class="card-body text-center">
-                <div class="mb-4">
-                    <i class="fas 
-                        {% if prediction == 'Low Risk' %}fa-smile text-success
-                        {% elif prediction == 'Medium Risk' %}fa-meh text-warning
-                        {% else %}fa-frown text-danger{% endif %} fa-5x mb-3"></i>
-                    <h3 class="card-title">{{ prediction }}</h3>
-                    <p class="lead">{{ description }}</p>
-                    <div class="progress mb-3" style="height: 25px;">
-                        <div class="progress-bar 
-                            {% if prediction == 'Low Risk' %}bg-success
-                            {% elif prediction == 'Medium Risk' %}bg-warning
-                            {% else %}bg-danger{% endif %}" 
-                            style="width: {{ probability }}%">
-                            {{ "%.1f"|format(probability) }}% Confidence
-                        </div>
-                    </div>
+    {% if not show_result %}
+    <!-- Prediction Form -->
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Enter Your Health Information</h5>
                 </div>
-                
-                <div class="row text-start">
-                    <div class="col-md-6">
-                        <h5>Recommendations:</h5>
-                        <ul>
-                            {% if prediction == 'Low Risk' %}
-                            <li>Continue maintaining healthy lifestyle habits</li>
-                            <li>Regular exercise and balanced nutrition</li>
-                            <li>Annual health check-ups</li>
-                            {% elif prediction == 'Medium Risk' %}
-                            <li>Improve dietary habits</li>
-                            <li>Increase physical activity</li>
-                            <li>Monitor blood pressure regularly</li>
-                            <li>Consider consulting a nutritionist</li>
-                            {% else %}
-                            <li>Consult with a healthcare professional</li>
-                            <li>Implement significant lifestyle changes</li>
-                            <li>Regular monitoring of vital signs</li>
-                            <li>Consider medical intervention if advised</li>
-                            {% endif %}
-                        </ul>
-                    </div>
-                    <div class="col-md-6">
-                        <h5>Next Steps:</h5>
-                        <ul>
-                            <li>Track your vitals regularly</li>
-                            <li>Set health goals in the dashboard</li>
-                            <li>Schedule appointments with healthcare providers</li>
-                            <li>Join health improvement programs if available</li>
-                        </ul>
-                    </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('prediction') }}">
+                        <div class="row g-3">
+                            <!-- Basic Information -->
+                            <div class="col-md-6">
+                                <label for="age" class="form-label">Age</label>
+                                <input type="number" class="form-control" id="age" name="age" min="1" max="120" required>
+                                <div class="form-text">Enter your current age</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="bmi" class="form-label">Body Mass Index (BMI)</label>
+                                <input type="number" class="form-control" id="bmi" name="bmi" step="0.1" required>
+                                <div class="form-text">Weight(kg) / Height(m)²</div>
+                            </div>
+
+                            <!-- Blood Pressure -->
+                            <div class="col-md-6">
+                                <label for="bp_systolic" class="form-label">Systolic Blood Pressure</label>
+                                <input type="number" class="form-control" id="bp_systolic" name="bp_systolic" required>
+                                <div class="form-text">Upper number in BP reading</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="bp_diastolic" class="form-label">Diastolic Blood Pressure</label>
+                                <input type="number" class="form-control" id="bp_diastolic" name="bp_diastolic" required>
+                                <div class="form-text">Lower number in BP reading</div>
+                            </div>
+
+                            <!-- Additional Health Metrics -->
+                            <div class="col-md-6">
+                                <label for="glucose" class="form-label">Blood Glucose Level</label>
+                                <input type="number" class="form-control" id="glucose" name="glucose" step="0.1" required>
+                                <div class="form-text">mg/dL (fasting recommended)</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="cholesterol" class="form-label">Cholesterol Level</label>
+                                <input type="number" class="form-control" id="cholesterol" name="cholesterol" step="0.1">
+                                <div class="form-text">mg/dL (optional)</div>
+                            </div>
+
+                            <!-- Lifestyle Factors -->
+                            <div class="col-12">
+                                <h6 class="mt-4 mb-3">Lifestyle Information</h6>
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Physical Activity</label>
+                                        <select class="form-select" name="activity_level">
+                                            <option value="sedentary">Sedentary</option>
+                                            <option value="light">Light Activity</option>
+                                            <option value="moderate">Moderate Activity</option>
+                                            <option value="active">Active</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Smoking Status</label>
+                                        <select class="form-select" name="smoking_status">
+                                            <option value="never">Never Smoked</option>
+                                            <option value="former">Former Smoker</option>
+                                            <option value="current">Current Smoker</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Family History</label>
+                                        <select class="form-select" name="family_history">
+                                            <option value="none">No Family History</option>
+                                            <option value="diabetes">Diabetes</option>
+                                            <option value="heart">Heart Disease</option>
+                                            <option value="both">Both</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="d-grid mt-4">
+                                    <button type="submit" class="btn btn-primary btn-lg">Analyze Health Risk</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
                 </div>
-                
-                <div class="mt-4">
-                    <a href="{{ url_for('prediction') }}" class="btn btn-primary me-2">New Prediction</a>
-                    <a href="{{ url_for('vitals') }}" class="btn btn-outline-primary">Record Vitals</a>
+            </div>
+
+            <!-- Information Section -->
+            <div class="card mt-4 border-info">
+                <div class="card-body">
+                    <h5 class="text-info">Understanding Health Risk Assessment</h5>
+                    <p>Our advanced assessment tool evaluates multiple health parameters to provide insights into potential health risks.</p>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6>Conditions Assessed:</h6>
+                            <ul>
+                                <li>Type 2 Diabetes Risk</li>
+                                <li>Hypertension Probability</li>
+                                <li>Cardiovascular Disease Risk</li>
+                                <li>Metabolic Syndrome Indicators</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Assessment Factors:</h6>
+                            <ul>
+                                <li>Biometric Measurements</li>
+                                <li>Lifestyle Habits</li>
+                                <li>Family Medical History</li>
+                                <li>Clinical Parameters</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-light mt-3">
+                        <small>
+                            <strong>Important:</strong> This assessment provides educational insights based on statistical models. 
+                            It is not a medical diagnosis. Always consult healthcare professionals for medical advice and diagnosis.
+                        </small>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+    {% else %}
+    <!-- Prediction Results -->
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card border-0 shadow">
+                <div class="card-header 
+                    {% if prediction == 'Low Risk' %}bg-success
+                    {% elif prediction == 'Medium Risk' %}bg-warning
+                    {% else %}bg-danger{% endif %} text-white">
+                    <h5 class="mb-0">Health Assessment Results</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Risk Summary -->
+                    <div class="text-center mb-5">
+                        <div class="mb-4" style="font-size: 4rem;">
+                            {% if prediction == 'Low Risk' %}✅
+                            {% elif prediction == 'Medium Risk' %}⚠️
+                            {% else %}🚨{% endif %}
+                        </div>
+                        <h3 class="card-title 
+                            {% if prediction == 'Low Risk' %}text-success
+                            {% elif prediction == 'Medium Risk' %}text-warning
+                            {% else %}text-danger{% endif %}">
+                            {{ prediction }} Level
+                        </h3>
+                        <p class="lead">{{ description }}</p>
+                        
+                        <!-- Confidence Meter -->
+                        <div class="row justify-content-center mt-4">
+                            <div class="col-md-8">
+                                <div class="progress mb-2" style="height: 30px;">
+                                    <div class="progress-bar 
+                                        {% if prediction == 'Low Risk' %}bg-success
+                                        {% elif prediction == 'Medium Risk' %}bg-warning
+                                        {% else %}bg-danger{% endif %}" 
+                                        style="width: {{ probability }}%">
+                                        {{ "%.1f"|format(probability) }}% Confidence
+                                    </div>
+                                </div>
+                                <small class="text-muted">Assessment confidence level</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Recommendations -->
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="card border-0 bg-light h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title text-primary">Immediate Actions</h6>
+                                    <ul class="list-unstyled">
+                                        {% if prediction == 'Low Risk' %}
+                                        <li class="mb-2">✅ Continue current health maintenance</li>
+                                        <li class="mb-2">✅ Maintain regular exercise routine</li>
+                                        <li class="mb-2">✅ Keep balanced nutritional habits</li>
+                                        <li class="mb-2">✅ Schedule annual health screenings</li>
+                                        {% elif prediction == 'Medium Risk' %}
+                                        <li class="mb-2">📊 Monitor blood pressure weekly</li>
+                                        <li class="mb-2">🥗 Improve dietary choices</li>
+                                        <li class="mb-2">🏃 Increase physical activity</li>
+                                        <li class="mb-2">🩺 Consult primary care physician</li>
+                                        {% else %}
+                                        <li class="mb-2">🩺 Schedule doctor appointment immediately</li>
+                                        <li class="mb-2">📋 Implement comprehensive lifestyle changes</li>
+                                        <li class="mb-2">💊 Discuss medication options with doctor</li>
+                                        <li class="mb-2">📱 Use health tracking features daily</li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card border-0 bg-light h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title text-primary">Long-term Strategies</h6>
+                                    <ul class="list-unstyled">
+                                        <li class="mb-2">📅 Regular health monitoring</li>
+                                        <li class="mb-2">🎯 Personalized goal setting</li>
+                                        <li class="mb-2">🍎 Nutritional planning</li>
+                                        <li class="mb-2">💪 Consistent exercise regimen</li>
+                                        <li class="mb-2">😴 Stress management techniques</li>
+                                        <li class="mb-2">🔄 Periodic risk reassessment</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="text-center mt-5">
+                        <div class="btn-group" role="group">
+                            <a href="{{ url_for('prediction') }}" class="btn btn-primary px-4">
+                                New Assessment
+                            </a>
+                            <a href="{{ url_for('vitals') }}" class="btn btn-outline-primary px-4">
+                                Record Vitals
+                            </a>
+                            <a href="{{ url_for('doctors') }}" class="btn btn-outline-info px-4">
+                                Find Doctors
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
-{% endif %}
 {% endblock %}
