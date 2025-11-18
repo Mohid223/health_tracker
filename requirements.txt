@@ -5,4 +5,5 @@ scikit-learn
 numpy 
 joblib 
 gunicorn 
-python-dotenv
+python-dotenv 
+Pillow
